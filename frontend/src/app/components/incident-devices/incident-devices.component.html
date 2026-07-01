@@ -1,0 +1,40 @@
+<div class="container">
+  <button class="btn-back" (click)="goBack()">← Retour</button>
+
+  <h2>Appareils pour MSISDN: {{ msisdn }}</h2>
+
+  <div *ngIf="isLoading" class="loading">Chargement...</div>
+
+  <div *ngIf="!isLoading && errorMessage" class="no-results">{{ errorMessage }}</div>
+
+  <table *ngIf="!isLoading && devices.length > 0" class="devices-table">
+    <thead>
+      <tr>
+        <th>Serial Number</th>
+        <th>IP</th>
+        <th>Version</th>
+        <th>IMSI</th>
+        <th>RSRP5G</th>
+        <th>SINR5G</th>
+        <th>RSRQ5G</th>
+        <th>Cell Name</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let device of devices">
+        <td>{{ device.serialNumber }}</td>
+        <td>{{ device.ip }}</td>
+        <td>{{ device.version }}</td>
+        <td>{{ device.imsi }}</td>
+        <td>{{ device.rsrp5G || '-' }}</td>
+        <td>{{ device.sinr5G || '-' }}</td>
+        <td>{{ device.rsrq5G || '-' }}</td>
+        <td>{{ device.cellName || '-' }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div *ngIf="!isLoading && devices.length > 0" class="record-count">
+    Total: {{ devices.length }} appareil(s)
+  </div>
+</div>

@@ -1,5 +1,6 @@
 package com.orange.monitoring.controller;
 
+import com.orange.monitoring.dto.DeviceWithCellInfo;
 import com.orange.monitoring.entity.AcsMaxBox5G;
 import com.orange.monitoring.service.AcsMaxBox5GService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,6 +81,12 @@ public class AcsMaxBox5GController {
     @GetMapping("/all")
     public ResponseEntity<List<AcsMaxBox5G>> getAllDevicesUnpaged() {
         List<AcsMaxBox5G> devices = service.getAllDevicesUnpaged();
+        return ResponseEntity.ok(devices);
+    }
+
+    @GetMapping("/by-msisdn/{msisdn}")
+    public ResponseEntity<List<DeviceWithCellInfo>> getDevicesByMsisdn(@PathVariable Long msisdn) {
+        List<DeviceWithCellInfo> devices = service.getDevicesByMsisdn(msisdn);
         return ResponseEntity.ok(devices);
     }
 }

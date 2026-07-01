@@ -1,10 +1,11 @@
 .dashboard-container {
-  padding: 2rem;
+  padding: 0;
 }
 
 h2 {
+  color: var(--dark);
+  font-size: 1.5rem;
   margin-bottom: 2rem;
-  color: #333;
 }
 
 .stats-grid {
@@ -15,17 +16,18 @@ h2 {
 }
 
 .stat-card {
-  background: white;
+  background: var(--white);
   padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   text-align: center;
+  border-top: 3px solid var(--orange);
 }
 
 .stat-card h3 {
-  color: #666;
+  color: var(--gray);
   margin: 0 0 1rem 0;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -34,7 +36,7 @@ h2 {
   font-size: 2.5rem;
   font-weight: bold;
   margin: 0;
-  color: #007bff;
+  color: var(--orange);
 }
 
 .stat-value.online {
@@ -48,7 +50,7 @@ h2 {
 .loading {
   text-align: center;
   padding: 4rem 2rem;
-  color: #666;
+  color: var(--gray);
   font-size: 1.1rem;
 }
 
@@ -59,10 +61,10 @@ h2 {
 }
 
 .chart-card {
-  background: white;
+  background: var(--white);
   padding: 2rem;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .chart-card.full-width {
@@ -71,7 +73,8 @@ h2 {
 
 .chart-card h3 {
   margin: 0 0 1.5rem 0;
-  color: #333;
+  color: var(--dark);
+  font-size: 1.1rem;
 }
 
 canvas {
@@ -79,15 +82,7 @@ canvas {
 }
 
 @media (max-width: 768px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .chart-card.full-width {
-    grid-column: 1;
-  }
+  .stats-grid { grid-template-columns: 1fr; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .chart-card.full-width { grid-column: 1; }
 }

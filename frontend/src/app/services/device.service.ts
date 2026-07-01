@@ -1,13 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AcsMaxBox5G, PageResponse } from '../models/device.model';
+import { AcsMaxBox5G, Incident, PageResponse } from '../models/device.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DeviceService {
   private apiUrl = 'http://localhost:8081/api/devices';
+  private incidentUrl = 'http://localhost:8081/api/incidents';
 
   constructor(private http: HttpClient) { }
 
@@ -51,5 +52,13 @@ export class DeviceService {
 
   getAllDevices(): Observable<AcsMaxBox5G[]> {
     return this.http.get<AcsMaxBox5G[]>(`${this.apiUrl}/all`);
+  }
+
+  getIncidents(): Observable<Incident[]> {
+    return this.http.get<Incident[]>(this.incidentUrl);
+  }
+
+  getDevicesByMsisdn(msisdn: number): Observable<AcsMaxBox5G[]> {
+    return this.http.get<AcsMaxBox5G[]>(`${this.apiUrl}/by-msisdn/${msisdn}`);
   }
 }

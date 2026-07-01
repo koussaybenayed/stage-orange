@@ -10,13 +10,15 @@ import { AppComponent } from './app.component';
 import { DeviceListComponent } from './components/device-list/device-list.component';
 import { DeviceDetailComponent } from './components/device-detail/device-detail.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
+import { IncidentDevicesComponent } from './components/incident-devices/incident-devices.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     DeviceListComponent,
     DeviceDetailComponent,
-    DashboardComponent
+    DashboardComponent,
+    IncidentDevicesComponent
   ],
   imports: [
     BrowserModule,

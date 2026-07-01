@@ -3,11 +3,13 @@ import { RouterModule, Routes } from '@angular/router';
 import { DeviceListComponent } from './components/device-list/device-list.component';
 import { DeviceDetailComponent } from './components/device-detail/device-detail.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
+import { IncidentDevicesComponent } from './components/incident-devices/incident-devices.component';
 
 const routes: Routes = [
   { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'devices', component: DeviceListComponent },
+  { path: 'devices/by-msisdn/:msisdn', component: IncidentDevicesComponent },
   { path: 'devices/:id', component: DeviceDetailComponent },
   { path: '**', redirectTo: '/dashboard' }
 ];

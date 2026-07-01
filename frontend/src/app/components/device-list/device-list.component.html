@@ -1,60 +1,38 @@
 <div class="device-list-container">
-  <h2>Network Devices</h2>
-
-  <div class="search-bar">
-    <input 
-      type="text" 
-      placeholder="Search by serial number, IP, version, or cell ID..." 
-      [(ngModel)]="searchTerm"
-      (keyup.enter)="onSearch()">
-    <button (click)="onSearch()" [disabled]="isLoading">Search</button>
-  </div>
+  <h2>Incidents MAXBOX 5G</h2>
 
   <div *ngIf="isLoading" class="loading">Loading...</div>
 
-  <div *ngIf="!isLoading && devices.length === 0" class="no-results">
-    No devices found. Try adjusting your search criteria.
+  <div *ngIf="!isLoading && incidents.length === 0" class="no-results">
+    No incidents found.
   </div>
 
-  <table *ngIf="!isLoading && devices.length > 0" class="devices-table">
+  <table *ngIf="!isLoading && incidents.length > 0" class="devices-table">
     <thead>
       <tr>
-        <th>Serial Number</th>
-        <th>IP Address</th>
-        <th>Version</th>
-        <th>Last Inform</th>
-        <th>SINR (dB)</th>
-        <th>RSRP (dBm)</th>
+        <th>Numéro de demande</th>
+        <th>Date de création</th>
+        <th>Sujet</th>
+        <th>MSISDN</th>
+        <th>Offre/Contrat</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let device of devices">
-        <td>{{ device.serialNumber }}</td>
-        <td>{{ device.ip }}</td>
-        <td>{{ device.version }}</td>
-        <td>{{ device.lastInform | date: 'short' }}</td>
-        <td>{{ device.sinr || '-' }}</td>
-        <td>{{ device.rsrp || '-' }}</td>
+      <tr *ngFor="let inc of incidents">
+        <td>{{ inc.requestNumber }}</td>
+        <td>{{ inc.created | date: 'short' }}</td>
+        <td>{{ inc.sujet }}</td>
+        <td>{{ inc.msisdn }}</td>
+        <td>{{ inc.offreContrat }}</td>
         <td class="actions">
-          <button class="btn-view" (click)="viewDetails(device.id)">View</button>
-          <button class="btn-delete" (click)="deleteDevice(device.id)">Delete</button>
+          <button class="btn-view" (click)="viewDevices(inc.msisdn)">Voir appareils</button>
         </td>
       </tr>
     </tbody>
   </table>
 
-  <div *ngIf="!isLoading && devices.length > 0" class="pagination">
-    <button 
-      [disabled]="currentPage === 0" 
-      (click)="onPageChange(currentPage - 1)">
-      Previous
-    </button>
-    <span>Page {{ currentPage + 1 }} of {{ getTotalPages() }}</span>
-    <button 
-      [disabled]="currentPage >= getTotalPages() - 1" 
-      (click)="onPageChange(currentPage + 1)">
-      Next
-    </button>
+  <div *ngIf="!isLoading && incidents.length > 0" class="record-count">
+    Total: {{ incidents.length }} incidents
   </div>
 </div>

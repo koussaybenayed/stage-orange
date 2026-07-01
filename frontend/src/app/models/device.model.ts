@@ -1,3 +1,11 @@
+export interface Incident {
+  requestNumber: string;
+  created: string;
+  sujet: string;
+  msisdn: number;
+  offreContrat: string;
+}
+
 export interface AcsMaxBox5G {
   id?: number;
   serialNumber: string;
@@ -22,6 +30,7 @@ export interface AcsMaxBox5G {
   ipData?: string;
   lastBoot?: string;
   apnData?: string;
+  cellName?: string;
 }
 
 export interface PageResponse<T> {

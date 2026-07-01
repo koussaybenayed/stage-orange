@@ -1,13 +1,31 @@
 <div class="navbar">
   <div class="navbar-container">
-    <h1 class="navbar-title">{{ title }}</h1>
+    <a routerLink="/" class="navbar-brand">
+      <img src="assets/orange-logo.svg" alt="Orange" class="navbar-logo">
+      <span class="navbar-title">Monitoring</span>
+    </a>
     <nav class="navbar-menu">
-      <a routerLink="/devices" routerLinkActive="active">Devices</a>
+      <a routerLink="/devices" routerLinkActive="active">Incidents</a>
       <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
     </nav>
   </div>
 </div>
 
-<div class="container">
+<div class="main-content">
   <router-outlet></router-outlet>
+</div>
+
+<div class="footer">
+  <div class="footer-container">
+    <div class="footer-brand">
+      <img src="assets/orange-logo-white.svg" alt="Orange" class="footer-logo">
+      <span>Monitoring</span>
+    </div>
+    <div class="footer-links">
+      <a href="#">About</a>
+      <a href="#">Legal</a>
+      <a href="#">Contact</a>
+    </div>
+    <div class="footer-copy">&copy; Orange 2026</div>
+  </div>
 </div>

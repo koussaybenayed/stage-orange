@@ -98,8 +98,8 @@ export class DashboardComponent implements OnInit {
             sinrValues.length > 0 ? sinrValues.reduce((a, b) => a + b, 0) / sinrValues.length : 0,
             rsrpValues.length > 0 ? rsrpValues.reduce((a, b) => a + b, 0) / rsrpValues.length : 0
           ],
-          backgroundColor: ['#007bff', '#28a745'],
-          borderColor: ['#0056b3', '#218838'],
+          backgroundColor: ['#FF7900', '#28a745'],
+          borderColor: ['#E56A00', '#218838'],
           borderWidth: 1
         }
       ]
@@ -130,8 +130,8 @@ export class DashboardComponent implements OnInit {
         {
           label: 'Average Throughput',
           data: [avgDownload, avgUpload],
-          borderColor: '#007bff',
-          backgroundColor: 'rgba(0,123,255,0.1)',
+          borderColor: '#FF7900',
+          backgroundColor: 'rgba(255,121,0,0.1)',
           tension: 0.4,
           fill: true
         }

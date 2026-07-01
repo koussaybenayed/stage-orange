@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 @Repository
 public interface AcsMaxBox5GRepository extends JpaRepository<AcsMaxBox5G, String> {
 
@@ -23,4 +25,6 @@ public interface AcsMaxBox5GRepository extends JpaRepository<AcsMaxBox5G, String
     Page<AcsMaxBox5G> findByIpContainingIgnoreCase(String ip, Pageable pageable);
 
     Page<AcsMaxBox5G> findByVersionContainingIgnoreCase(String version, Pageable pageable);
+
+    List<AcsMaxBox5G> findByImsiAndRsrp5GIsNotNull(Long imsi);
 }
