@@ -1,0 +1,60 @@
+<div class="device-list-container">
+  <h2>Network Devices</h2>
+
+  <div class="search-bar">
+    <input 
+      type="text" 
+      placeholder="Search by serial number, IP, version, or cell ID..." 
+      [(ngModel)]="searchTerm"
+      (keyup.enter)="onSearch()">
+    <button (click)="onSearch()" [disabled]="isLoading">Search</button>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Loading...</div>
+
+  <div *ngIf="!isLoading && devices.length === 0" class="no-results">
+    No devices found. Try adjusting your search criteria.
+  </div>
+
+  <table *ngIf="!isLoading && devices.length > 0" class="devices-table">
+    <thead>
+      <tr>
+        <th>Serial Number</th>
+        <th>IP Address</th>
+        <th>Version</th>
+        <th>Last Inform</th>
+        <th>SINR (dB)</th>
+        <th>RSRP (dBm)</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let device of devices">
+        <td>{{ device.serialNumber }}</td>
+        <td>{{ device.ip }}</td>
+        <td>{{ device.version }}</td>
+        <td>{{ device.lastInform | date: 'short' }}</td>
+        <td>{{ device.sinr || '-' }}</td>
+        <td>{{ device.rsrp || '-' }}</td>
+        <td class="actions">
+          <button class="btn-view" (click)="viewDetails(device.id)">View</button>
+          <button class="btn-delete" (click)="deleteDevice(device.id)">Delete</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div *ngIf="!isLoading && devices.length > 0" class="pagination">
+    <button 
+      [disabled]="currentPage === 0" 
+      (click)="onPageChange(currentPage - 1)">
+      Previous
+    </button>
+    <span>Page {{ currentPage + 1 }} of {{ getTotalPages() }}</span>
+    <button 
+      [disabled]="currentPage >= getTotalPages() - 1" 
+      (click)="onPageChange(currentPage + 1)">
+      Next
+    </button>
+  </div>
+</div>

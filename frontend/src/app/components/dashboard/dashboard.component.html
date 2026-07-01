@@ -1,0 +1,52 @@
+<div class="dashboard-container">
+  <h2>Dashboard</h2>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <h3>Total Devices</h3>
+      <p class="stat-value">{{ totalDevices }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>Online Devices</h3>
+      <p class="stat-value online">{{ getOnlineDevices() }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>Offline Devices</h3>
+      <p class="stat-value offline">{{ getOfflineDevices() }}</p>
+    </div>
+  </div>
+
+  <div *ngIf="isLoading" class="loading">Loading dashboard data...</div>
+
+  <div *ngIf="!isLoading && devices.length > 0" class="charts-grid">
+    <div class="chart-card">
+      <h3>Signal Quality (Average)</h3>
+      <canvas 
+        baseChart
+        [data]="signalQualityChartData"
+        [options]="signalQualityChartOptions"
+        type="bar">
+      </canvas>
+    </div>
+
+    <div class="chart-card">
+      <h3>Device Status Distribution</h3>
+      <canvas 
+        baseChart
+        [data]="deviceStatusChartData"
+        [options]="deviceStatusChartOptions"
+        type="doughnut">
+      </canvas>
+    </div>
+
+    <div class="chart-card full-width">
+      <h3>Average Throughput</h3>
+      <canvas 
+        baseChart
+        [data]="throughputChartData"
+        [options]="throughputChartOptions"
+        type="line">
+      </canvas>
+    </div>
+  </div>
+</div>
