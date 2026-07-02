@@ -1,5 +1,6 @@
 package com.orange.monitoring.controller;
 
+import com.orange.monitoring.dto.IncidentWithDeviceInfo;
 import com.orange.monitoring.entity.ReUn22906;
 import com.orange.monitoring.service.ReUn22906Service;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,5 +21,10 @@ public class ReUn22906Controller {
     @GetMapping
     public ResponseEntity<List<ReUn22906>> getFilteredIncidents() {
         return ResponseEntity.ok(service.getFilteredIncidents());
+    }
+
+    @GetMapping("/with-device-info")
+    public ResponseEntity<List<IncidentWithDeviceInfo>> getIncidentsWithDeviceInfo() {
+        return ResponseEntity.ok(service.getIncidentsWithDeviceInfo());
     }
 }

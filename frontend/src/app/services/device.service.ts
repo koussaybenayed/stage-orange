@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AcsMaxBox5G, Incident, PageResponse } from '../models/device.model';
+import { AcsMaxBox5G, Incident, IncidentWithDeviceInfo, PageResponse } from '../models/device.model';
 
 @Injectable({
   providedIn: 'root'
@@ -56,6 +56,10 @@ export class DeviceService {
 
   getIncidents(): Observable<Incident[]> {
     return this.http.get<Incident[]>(this.incidentUrl);
+  }
+
+  getIncidentsWithDeviceInfo(): Observable<IncidentWithDeviceInfo[]> {
+    return this.http.get<IncidentWithDeviceInfo[]>(`${this.incidentUrl}/with-device-info`);
   }
 
   getDevicesByMsisdn(msisdn: number): Observable<AcsMaxBox5G[]> {

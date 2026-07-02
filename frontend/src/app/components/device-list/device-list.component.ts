@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { DeviceService } from '../../services/device.service';
-import { Incident } from '../../models/device.model';
+import { IncidentWithDeviceInfo } from '../../models/device.model';
 
 @Component({
   selector: 'app-device-list',
@@ -9,7 +9,7 @@ import { Incident } from '../../models/device.model';
   styleUrls: ['./device-list.component.css']
 })
 export class DeviceListComponent implements OnInit {
-  incidents: Incident[] = [];
+  incidents: IncidentWithDeviceInfo[] = [];
   isLoading = false;
 
   constructor(private deviceService: DeviceService, private router: Router) { }
@@ -20,7 +20,7 @@ export class DeviceListComponent implements OnInit {
 
   loadIncidents(): void {
     this.isLoading = true;
-    this.deviceService.getIncidents().subscribe(
+    this.deviceService.getIncidentsWithDeviceInfo().subscribe(
       (data) => {
         this.incidents = data;
         this.isLoading = false;

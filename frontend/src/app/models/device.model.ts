@@ -6,6 +6,20 @@ export interface Incident {
   offreContrat: string;
 }
 
+export interface IncidentWithDeviceInfo {
+  requestNumber: string;
+  created: string;
+  sujet: string;
+  msisdn: number;
+  offreContrat: string;
+  cellName: string;
+  rsrp4G: string;
+  sinr4G: string;
+  rsrp5G: string;
+  sinr5G: string;
+  cellName5G: string;
+}
+
 export interface AcsMaxBox5G {
   id?: number;
   serialNumber: string;

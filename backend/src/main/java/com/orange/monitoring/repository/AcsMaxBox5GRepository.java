@@ -27,4 +27,6 @@ public interface AcsMaxBox5GRepository extends JpaRepository<AcsMaxBox5G, String
     Page<AcsMaxBox5G> findByVersionContainingIgnoreCase(String version, Pageable pageable);
 
     List<AcsMaxBox5G> findByImsiAndRsrp5GIsNotNull(Long imsi);
+
+    List<AcsMaxBox5G> findAllByImsiIn(List<Long> imsis);
 }

@@ -10,11 +10,17 @@
   <table *ngIf="!isLoading && incidents.length > 0" class="devices-table">
     <thead>
       <tr>
-        <th>Numéro de demande</th>
-        <th>Date de création</th>
+        <th>Numero de demande</th>
+        <th>Date de creation</th>
         <th>Sujet</th>
         <th>MSISDN</th>
         <th>Offre/Contrat</th>
+        <th>Cell Name 4G</th>
+        <th>Cell Name 5G</th>
+        <th>RSRP 4G</th>
+        <th>SINR 4G</th>
+        <th>RSRP 5G</th>
+        <th>SINR 5G</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -25,6 +31,12 @@
         <td>{{ inc.sujet }}</td>
         <td>{{ inc.msisdn }}</td>
         <td>{{ inc.offreContrat }}</td>
+        <td>{{ inc.cellName || '-' }}</td>
+        <td>{{ inc.cellName5G || '-' }}</td>
+        <td>{{ inc.rsrp4G || '-' }}</td>
+        <td>{{ inc.sinr4G || '-' }}</td>
+        <td>{{ inc.rsrp5G || '-' }}</td>
+        <td>{{ inc.sinr5G || '-' }}</td>
         <td class="actions">
           <button class="btn-view" (click)="viewDevices(inc.msisdn)">Voir appareils</button>
         </td>
