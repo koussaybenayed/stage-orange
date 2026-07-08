@@ -31,4 +31,6 @@ public class DeviceWithCellInfo {
     private String lastBoot;
     private String apnData;
     private String cellName;
+    private Double latitude;
+    private Double longitude;
 }

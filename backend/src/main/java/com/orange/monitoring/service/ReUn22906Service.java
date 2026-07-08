@@ -4,11 +4,13 @@ import com.orange.monitoring.dto.IncidentWithDeviceInfo;
 import com.orange.monitoring.entity.AcsMaxBox5G;
 import com.orange.monitoring.entity.NrCell;
 import com.orange.monitoring.entity.ReUn22906;
+import com.orange.monitoring.entity.SiteOtn;
 import com.orange.monitoring.repository.AcsMaxBox5GRepository;
 import com.orange.monitoring.repository.FixboxCombinedTableRepository;
 import com.orange.monitoring.repository.LteCellInfoRepository;
 import com.orange.monitoring.repository.NrCellRepository;
 import com.orange.monitoring.repository.ReUn22906Repository;
+import com.orange.monitoring.repository.SiteOtnRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,12 @@ public class ReUn22906Service {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private SiteOtnRepository siteOtnRepository;
+
+    private Map<String, Double[]> siteCache; // sitePrefix -> [lat, lng]
+    private Map<String, String> lteCellCache; // "eNodeBId_localCellId" -> cellName
+
     public List<ReUn22906> getFilteredIncidents() {
         return repository.findFiltered(
                 "D\u00e9connexion",
@@ -49,8 +57,9 @@ public class ReUn22906Service {
     public List<IncidentWithDeviceInfo> getIncidentsWithDeviceInfo() {
         List<ReUn22906> incidents = getFilteredIncidents();
 
-        // Build: original MSISDN -> list of devices (batch-fetched)
         Map<Long, List<AcsMaxBox5G>> devicesByOriginalMsisdn = buildDevicesByMsisdn(incidents);
+
+        loadCaches();
 
         List<IncidentWithDeviceInfo> result = new ArrayList<>();
         for (ReUn22906 inc : incidents) {
@@ -70,13 +79,46 @@ public class ReUn22906Service {
                     info.setSinr4G(device.getSinr());
                     info.setRsrp5G(device.getRsrp5G());
                     info.setSinr5G(device.getSinr5G());
-                    resolveCellInfo(device, info);
+                    resolveCellInfoCached(device, info);
                 }
             }
 
             result.add(info);
         }
         return result;
+    }
+
+    private void loadCaches() {
+        if (siteCache == null) {
+            Map<String, Double[]> map = new HashMap<>();
+            try {
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT site, Latitude_Sector, Longitude_Sector FROM site_otn WHERE site IS NOT NULL"
+                );
+                for (Map<String, Object> row : rows) {
+                    String site = row.get("site").toString();
+                    Double lat = row.get("Latitude_Sector") != null ? ((Number) row.get("Latitude_Sector")).doubleValue() : null;
+                    Double lng = row.get("Longitude_Sector") != null ? ((Number) row.get("Longitude_Sector")).doubleValue() : null;
+                    if (lat != null && lng != null) {
+                        map.put(site, new Double[]{lat, lng});
+                    }
+                }
+            } catch (Exception ignored) {}
+            siteCache = map;
+        }
+        if (lteCellCache == null) {
+            Map<String, String> map = new HashMap<>();
+            try {
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT eNodeB_Id, Local_cell_identity, Cell_Name FROM lte_cell_info_lm_2026_06_30_11_32_27_244 WHERE Cell_Name IS NOT NULL"
+                );
+                for (Map<String, Object> row : rows) {
+                    String key = row.get("eNodeB_Id") + "_" + row.get("Local_cell_identity");
+                    map.put(key, row.get("Cell_Name").toString());
+                }
+            } catch (Exception ignored) {}
+            lteCellCache = map;
+        }
     }
 
     private Map<Long, List<AcsMaxBox5G>> buildDevicesByMsisdn(List<ReUn22906> incidents) {
@@ -156,7 +198,7 @@ public class ReUn22906Service {
         return result;
     }
 
-    private void resolveCellInfo(AcsMaxBox5G device, IncidentWithDeviceInfo info) {
+    private void resolveCellInfoCached(AcsMaxBox5G device, IncidentWithDeviceInfo info) {
         String cellId = device.getCellId();
         if (cellId == null || !cellId.contains("-")) {
             return;
@@ -166,18 +208,22 @@ public class ReUn22906Service {
             Long eNodeBId = Long.parseLong(parts[0].replaceFirst("^0+", ""));
             Long localCellIdentity = Long.parseLong(parts[1]);
             String rawCellName = null;
-            try {
-                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT Cell_Name FROM lte_cell_info_lm_2026_06_30_11_32_27_244 WHERE eNodeB_Id = ? AND Local_cell_identity = ? LIMIT 1",
-                    eNodeBId, localCellIdentity
-                );
-                if (!rows.isEmpty()) {
-                    Object val = rows.get(0).get("Cell_Name");
-                    if (val != null) rawCellName = val.toString();
-                }
-            } catch (Exception ignored) {}
+            if (lteCellCache != null) {
+                rawCellName = lteCellCache.get(eNodeBId + "_" + localCellIdentity);
+            }
             if (rawCellName != null) {
-                info.setCellName(eNodeBId + "" + localCellIdentity + "" + rawCellName);
+                String fullCellName = eNodeBId + "" + localCellIdentity + "" + rawCellName;
+                info.setCellName(fullCellName);
+                if (rawCellName.length() >= 8) {
+                    String sitePrefix = rawCellName.substring(0, 8);
+                    if (siteCache != null) {
+                        Double[] coords = siteCache.get(sitePrefix);
+                        if (coords != null) {
+                            info.setLatitude(coords[0]);
+                            info.setLongitude(coords[1]);
+                        }
+                    }
+                }
                 if (rawCellName.length() >= 3) {
                     String prefix = rawCellName.substring(0, 3).toUpperCase();
                     Double pci5G = device.getPci5G();

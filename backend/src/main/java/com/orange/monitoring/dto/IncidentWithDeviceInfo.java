@@ -20,4 +20,6 @@ public class IncidentWithDeviceInfo {
     private String sinr5G;
     private String cellName5G;
     private Long debugImsi;
+    private Double latitude;
+    private Double longitude;
 }

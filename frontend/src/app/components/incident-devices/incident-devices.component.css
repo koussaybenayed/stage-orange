@@ -35,6 +35,22 @@ h2 {
   font-size: 1.1rem;
 }
 
+.map-container {
+  height: 400px;
+  width: 100%;
+  margin-bottom: 2rem;
+  border-radius: 8px;
+  z-index: 1;
+}
+
+.map-container.map-hidden {
+  display: none;
+}
+
+.map-container .leaflet-container {
+  z-index: 1;
+}
+
 .devices-table {
   width: 100%;
   border-collapse: collapse;

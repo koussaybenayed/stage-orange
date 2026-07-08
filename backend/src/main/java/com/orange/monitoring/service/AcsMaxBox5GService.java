@@ -4,9 +4,12 @@ import com.orange.monitoring.dto.DeviceWithCellInfo;
 import com.orange.monitoring.entity.AcsMaxBox5G;
 import com.orange.monitoring.entity.FixboxCombinedTable;
 import com.orange.monitoring.entity.LteCellInfo;
+import com.orange.monitoring.entity.SiteOtn;
 import com.orange.monitoring.repository.AcsMaxBox5GRepository;
 import com.orange.monitoring.repository.FixboxCombinedTableRepository;
 import com.orange.monitoring.repository.LteCellInfoRepository;
+import com.orange.monitoring.repository.SiteOtnRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,7 +17,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -28,6 +33,14 @@ public class AcsMaxBox5GService {
 
     @Autowired
     private LteCellInfoRepository lteCellInfoRepository;
+
+    @Autowired
+    private SiteOtnRepository siteOtnRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    private Map<String, Double[]> siteCache;
 
     public Page<AcsMaxBox5G> getAllDevices(Pageable pageable) {
         return repository.findAll(pageable);
@@ -86,6 +99,25 @@ public class AcsMaxBox5GService {
         return repository.findAll();
     }
 
+    private void loadSiteCache() {
+        if (siteCache != null) return;
+        Map<String, Double[]> map = new HashMap<>();
+        try {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT site, Latitude_Sector, Longitude_Sector FROM site_otn WHERE site IS NOT NULL"
+            );
+            for (Map<String, Object> row : rows) {
+                String site = row.get("site").toString();
+                Double lat = row.get("Latitude_Sector") != null ? ((Number) row.get("Latitude_Sector")).doubleValue() : null;
+                Double lng = row.get("Longitude_Sector") != null ? ((Number) row.get("Longitude_Sector")).doubleValue() : null;
+                if (lat != null && lng != null) {
+                    map.put(site, new Double[]{lat, lng});
+                }
+            }
+        } catch (Exception ignored) {}
+        siteCache = map;
+    }
+
     public List<DeviceWithCellInfo> getDevicesByMsisdn(Long msisdn) {
         Long msisdnWithPrefix = Long.parseLong("216" + msisdn);
         Optional<FixboxCombinedTable> fixboxRecord = fixboxRepository.findByMsisdn(msisdnWithPrefix);
@@ -94,6 +126,7 @@ public class AcsMaxBox5GService {
         }
         Long imsi = fixboxRecord.get().getImsi();
         List<AcsMaxBox5G> devices = repository.findByImsiAndRsrp5GIsNotNull(imsi);
+        loadSiteCache();
         List<DeviceWithCellInfo> result = new ArrayList<>();
         for (AcsMaxBox5G d : devices) {
             DeviceWithCellInfo info = new DeviceWithCellInfo();
@@ -123,7 +156,18 @@ public class AcsMaxBox5GService {
             Optional<LteCellInfo> cellOpt = resolveCellInfo(d);
             if (cellOpt.isPresent()) {
                 LteCellInfo cell = cellOpt.get();
-                info.setCellName(cell.getEnodeBId() + "" + cell.getLocalCellIdentity() + "" + cell.getCellName());
+                String cellName = cell.getCellName();
+                info.setCellName(cell.getEnodeBId() + "" + cell.getLocalCellIdentity() + "" + cellName);
+                if (cellName != null && cellName.length() >= 8) {
+                    String sitePrefix = cellName.substring(0, 8);
+                    if (siteCache != null) {
+                        Double[] coords = siteCache.get(sitePrefix);
+                        if (coords != null) {
+                            info.setLatitude(coords[0]);
+                            info.setLongitude(coords[1]);
+                        }
+                    }
+                }
             } else {
                 info.setCellName("");
             }

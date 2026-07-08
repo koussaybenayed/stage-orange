@@ -1,0 +1,28 @@
+<div class="problem-map-container">
+  <h2>Carte des problèmes</h2>
+
+  <div *ngIf="isLoading" class="loading">Chargement des données...</div>
+
+  <div *ngIf="!isLoading && errorMessage" class="no-results">{{ errorMessage }}</div>
+
+  <div *ngIf="!isLoading && incidents.length === 0 && !errorMessage" class="no-results">
+    Aucun incident trouvé.
+  </div>
+
+  <div *ngIf="!isLoading && incidents.length > 0" class="map-wrapper">
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-label">Incidents</span>
+        <span class="stat-value">{{ getTotalIncidents() }}</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Sites concernés</span>
+        <span class="stat-value">{{ getTotalProblemSites() }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="problem-map" class="map-container" [class.map-hidden]="isLoading || incidents.length === 0"></div>
+
+
+</div>

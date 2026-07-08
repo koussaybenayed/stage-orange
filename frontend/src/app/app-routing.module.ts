@@ -4,6 +4,7 @@ import { DeviceListComponent } from './components/device-list/device-list.compon
 import { DeviceDetailComponent } from './components/device-detail/device-detail.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { IncidentDevicesComponent } from './components/incident-devices/incident-devices.component';
+import { ProblemMapComponent } from './components/problem-map/problem-map.component';
 
 const routes: Routes = [
   { path: '', redirectTo: '/dashboard', pathMatch: 'full' },
@@ -11,6 +12,7 @@ const routes: Routes = [
   { path: 'devices', component: DeviceListComponent },
   { path: 'devices/by-msisdn/:msisdn', component: IncidentDevicesComponent },
   { path: 'devices/:id', component: DeviceDetailComponent },
+  { path: 'problem-map', component: ProblemMapComponent },
   { path: '**', redirectTo: '/dashboard' }
 ];
 

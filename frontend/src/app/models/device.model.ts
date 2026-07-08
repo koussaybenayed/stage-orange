@@ -18,6 +18,8 @@ export interface IncidentWithDeviceInfo {
   rsrp5G: string;
   sinr5G: string;
   cellName5G: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface AcsMaxBox5G {
@@ -45,6 +47,8 @@ export interface AcsMaxBox5G {
   lastBoot?: string;
   apnData?: string;
   cellName?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface PageResponse<T> {

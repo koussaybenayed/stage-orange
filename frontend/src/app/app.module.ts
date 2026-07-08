@@ -11,6 +11,7 @@ import { DeviceListComponent } from './components/device-list/device-list.compon
 import { DeviceDetailComponent } from './components/device-detail/device-detail.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
 import { IncidentDevicesComponent } from './components/incident-devices/incident-devices.component';
+import { ProblemMapComponent } from './components/problem-map/problem-map.component';
 
 @NgModule({
   declarations: [
@@ -18,7 +19,8 @@ import { IncidentDevicesComponent } from './components/incident-devices/incident
     DeviceListComponent,
     DeviceDetailComponent,
     DashboardComponent,
-    IncidentDevicesComponent
+    IncidentDevicesComponent,
+    ProblemMapComponent
   ],
   imports: [
     BrowserModule,

@@ -7,6 +7,8 @@
 
   <div *ngIf="!isLoading && errorMessage" class="no-results">{{ errorMessage }}</div>
 
+  <div id="device-map" class="map-container" [class.map-hidden]="!showMap"></div>
+
   <table *ngIf="!isLoading && devices.length > 0" class="devices-table">
     <thead>
       <tr>
