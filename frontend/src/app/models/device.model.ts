@@ -18,6 +18,7 @@ export interface IncidentWithDeviceInfo {
   rsrp5G: string;
   sinr5G: string;
   cellName5G: string;
+  hzError?: string;
   latitude?: number;
   longitude?: number;
 }

@@ -8,7 +8,6 @@ import com.orange.monitoring.entity.SiteOtn;
 import com.orange.monitoring.repository.AcsMaxBox5GRepository;
 import com.orange.monitoring.repository.FixboxCombinedTableRepository;
 import com.orange.monitoring.repository.LteCellInfoRepository;
-import com.orange.monitoring.repository.NrCellRepository;
 import com.orange.monitoring.repository.ReUn22906Repository;
 import com.orange.monitoring.repository.SiteOtnRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,9 +33,6 @@ public class ReUn22906Service {
     private LteCellInfoRepository lteCellInfoRepository;
 
     @Autowired
-    private NrCellRepository nrCellRepository;
-
-    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
@@ -44,6 +40,7 @@ public class ReUn22906Service {
 
     private Map<String, Double[]> siteCache; // sitePrefix -> [lat, lng]
     private Map<String, String> lteCellCache; // "eNodeBId_localCellId" -> cellName
+    private Map<String, String> nrCellCache; // cle -> cellName
 
     public List<ReUn22906> getFilteredIncidents() {
         return repository.findFiltered(
@@ -58,6 +55,7 @@ public class ReUn22906Service {
         List<ReUn22906> incidents = getFilteredIncidents();
 
         Map<Long, List<AcsMaxBox5G>> devicesByOriginalMsisdn = buildDevicesByMsisdn(incidents);
+        Map<Long, String> hzErrorByMsisdn = buildHzErrors(incidents);
 
         loadCaches();
 
@@ -71,10 +69,12 @@ public class ReUn22906Service {
             info.setOffreContrat(inc.getOffreContrat());
 
             if (inc.getMsisdn() != null) {
+                info.setHzError(hzErrorByMsisdn.get(inc.getMsisdn()));
+
                 List<AcsMaxBox5G> devices = devicesByOriginalMsisdn.get(inc.getMsisdn());
                 if (devices != null && !devices.isEmpty()) {
                     AcsMaxBox5G device = devices.get(0);
-                    info.setDebugImsi(device.getImsi());
+                    try { info.setDebugImsi(Long.parseLong(device.getImsi().replace("\r", "").trim())); } catch (Exception e) { /* ignore */ }
                     info.setRsrp4G(device.getRsrp());
                     info.setSinr4G(device.getSinr());
                     info.setRsrp5G(device.getRsrp5G());
@@ -119,6 +119,18 @@ public class ReUn22906Service {
             } catch (Exception ignored) {}
             lteCellCache = map;
         }
+        if (nrCellCache == null) {
+            Map<String, String> map = new HashMap<>();
+            try {
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT cl\u00e9, Cell_Name FROM nr_cells WHERE Cell_Name IS NOT NULL"
+                );
+                for (Map<String, Object> row : rows) {
+                    map.put(row.get("cl\u00e9").toString(), row.get("Cell_Name").toString());
+                }
+            } catch (Exception ignored) {}
+            nrCellCache = map;
+        }
     }
 
     private Map<Long, List<AcsMaxBox5G>> buildDevicesByMsisdn(List<ReUn22906> incidents) {
@@ -133,56 +145,28 @@ public class ReUn22906Service {
             return Collections.emptyMap();
         }
 
-        // Create prefixed versions for fixbox lookup
-        List<Long> prefixedMsisdns = originalMsisdns.stream()
-                .map(m -> Long.parseLong("216" + m))
-                .collect(Collectors.toList());
-
-        // Build: original MSISDN -> IMSI via batch fixbox query (JdbcTemplate)
-        Map<Long, Long> imsiByOriginalMsisdn = new HashMap<>();
-        if (!prefixedMsisdns.isEmpty()) {
-            String placeholders = prefixedMsisdns.stream().map(m -> "?").collect(Collectors.joining(","));
-            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-                    "SELECT MSISDN, IMSI FROM fixbox_combined_table WHERE MSISDN IN (" + placeholders + ")",
-                    prefixedMsisdns.toArray()
-            );
-            Map<String, Long> msisdnToImsi = new HashMap<>();
-            for (Map<String, Object> row : rows) {
-                String msisdn = row.get("MSISDN").toString();
-                Long imsi = ((Number) row.get("IMSI")).longValue();
-                msisdnToImsi.put(msisdn, imsi);
-            }
-            for (int i = 0; i < originalMsisdns.size(); i++) {
-                Long original = originalMsisdns.get(i);
-                String prefixed = "216" + original;
-                Long imsi = msisdnToImsi.get(prefixed);
-                if (imsi != null) {
-                    imsiByOriginalMsisdn.put(original, imsi);
-                }
-            }
+        // acsmaxbox_5g.IMSI is derived directly from the MSISDN: "60501" + 10-digit zero-padded MSISDN
+        Map<Long, String> imsiByOriginalMsisdn = new HashMap<>();
+        List<String> imsis = new ArrayList<>();
+        for (Long m : originalMsisdns) {
+            String imsi = String.format("60501%010d", m);
+            imsiByOriginalMsisdn.put(m, imsi);
+            imsis.add(imsi);
         }
 
-        // Collect IMSIs and batch-fetch devices (1 query)
-        List<Long> imsis = imsiByOriginalMsisdn.values().stream()
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
+        // Batch-fetch devices (1 indexed query)
+        List<AcsMaxBox5G> allDevices = acsRepository.findAllByImsiIn(imsis);
 
-        List<AcsMaxBox5G> allDevices = imsis.isEmpty()
-                ? Collections.emptyList()
-                : acsRepository.findAllByImsiIn(imsis);
-
-        // Build: IMSI -> list of devices
-        Map<Long, List<AcsMaxBox5G>> devicesByImsi = allDevices.stream()
+        // Build: IMSI -> list of devices (group by cleaned IMSI, same key the SQL partitions on)
+        Map<String, List<AcsMaxBox5G>> devicesByImsi = allDevices.stream()
                 .filter(d -> d.getImsi() != null)
-                .collect(Collectors.groupingBy(AcsMaxBox5G::getImsi));
+                .collect(Collectors.groupingBy(d -> d.getImsi().replace("\r", "").trim()));
 
         // Build: original MSISDN -> list of devices (prefer device with rsrp5G)
         Map<Long, List<AcsMaxBox5G>> result = new HashMap<>();
-        for (Map.Entry<Long, Long> entry : imsiByOriginalMsisdn.entrySet()) {
+        for (Map.Entry<Long, String> entry : imsiByOriginalMsisdn.entrySet()) {
             Long originalMsisdn = entry.getKey();
-            Long imsi = entry.getValue();
-            List<AcsMaxBox5G> devices = devicesByImsi.get(imsi);
+            List<AcsMaxBox5G> devices = devicesByImsi.get(entry.getValue());
             if (devices != null) {
                 // Sort so device with rsrp5G comes first if available
                 devices.sort((a, b) -> {
@@ -193,6 +177,60 @@ public class ReUn22906Service {
                     return 0;
                 });
                 result.put(originalMsisdn, devices);
+            }
+        }
+        return result;
+    }
+
+    private Map<Long, String> buildHzErrors(List<ReUn22906> incidents) {
+        Map<Long, String> result = new HashMap<>();
+        List<Long> msisdns = incidents.stream()
+                .map(ReUn22906::getMsisdn)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (msisdns.isEmpty()) {
+            return result;
+        }
+
+        List<String> hzMsisdns = msisdns.stream()
+                .map(m -> String.valueOf(21600000000L + m))
+                .collect(Collectors.toList());
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT MSISDN, status, COUNT(*) AS cnt FROM hz WHERE MSISDN IN (");
+        for (int i = 0; i < hzMsisdns.size(); i++) {
+            if (i > 0) {
+                sql.append(",");
+            }
+            sql.append("?");
+        }
+        sql.append(") AND status IS NOT NULL AND status <> '' GROUP BY MSISDN, status");
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), hzMsisdns.toArray());
+
+        Map<Long, List<String[]>> perMsisdn = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            long incMsisdn = ((Number) row.get("MSISDN")).longValue() - 21600000000L;
+            String status = row.get("status").toString();
+            long cnt = ((Number) row.get("cnt")).longValue();
+            perMsisdn.computeIfAbsent(incMsisdn, k -> new ArrayList<>())
+                    .add(new String[]{status, String.valueOf(cnt)});
+        }
+
+        for (Map.Entry<Long, List<String[]>> e : perMsisdn.entrySet()) {
+            List<String[]> all = e.getValue();
+            all.sort((a, b) -> Long.compare(Long.parseLong(b[1]), Long.parseLong(a[1])));
+            List<String> errors = new ArrayList<>();
+            boolean anyRows = false;
+            for (String[] p : all) {
+                anyRows = true;
+                if (!"Authorized".equalsIgnoreCase(p[0])) {
+                    errors.add(p[0] + " (" + p[1] + ")");
+                }
+            }
+            if (anyRows) {
+                result.put(e.getKey(), errors.isEmpty() ? "No HZ errors" : String.join(", ", errors));
             }
         }
         return result;
@@ -229,9 +267,9 @@ public class ReUn22906Service {
                     Double pci5G = device.getPci5G();
                     if (pci5G != null) {
                         String key = prefix + pci5G.intValue();
-                        Optional<NrCell> nrCellOpt = nrCellRepository.findByCle(key);
-                        if (nrCellOpt.isPresent()) {
-                            info.setCellName5G(nrCellOpt.get().getCellName());
+                        String cellName5G = nrCellCache != null ? nrCellCache.get(key) : null;
+                        if (cellName5G != null) {
+                            info.setCellName5G(cellName5G);
                         }
                     }
                 }

@@ -4,7 +4,6 @@ import com.orange.monitoring.dto.DeviceWithCellInfo;
 import com.orange.monitoring.entity.AcsMaxBox5G;
 import com.orange.monitoring.entity.FixboxCombinedTable;
 import com.orange.monitoring.entity.LteCellInfo;
-import com.orange.monitoring.entity.SiteOtn;
 import com.orange.monitoring.repository.AcsMaxBox5GRepository;
 import com.orange.monitoring.repository.FixboxCombinedTableRepository;
 import com.orange.monitoring.repository.LteCellInfoRepository;
@@ -67,12 +66,6 @@ public class AcsMaxBox5GService {
                     if (deviceDetails.getSerialNumber() != null) {
                         device.setSerialNumber(deviceDetails.getSerialNumber());
                     }
-                    if (deviceDetails.getIp() != null) {
-                        device.setIp(deviceDetails.getIp());
-                    }
-                    if (deviceDetails.getVersion() != null) {
-                        device.setVersion(deviceDetails.getVersion());
-                    }
                     if (deviceDetails.getSinr() != null) {
                         device.setSinr(deviceDetails.getSinr());
                     }
@@ -119,39 +112,25 @@ public class AcsMaxBox5GService {
     }
 
     public List<DeviceWithCellInfo> getDevicesByMsisdn(Long msisdn) {
-        Long msisdnWithPrefix = Long.parseLong("216" + msisdn);
-        Optional<FixboxCombinedTable> fixboxRecord = fixboxRepository.findByMsisdn(msisdnWithPrefix);
-        if (fixboxRecord.isEmpty()) {
-            return Collections.emptyList();
-        }
-        Long imsi = fixboxRecord.get().getImsi();
-        List<AcsMaxBox5G> devices = repository.findByImsiAndRsrp5GIsNotNull(imsi);
+        String imsiStr = String.format("60501%010d", msisdn);
+        List<AcsMaxBox5G> devices = repository.findByImsiAndRsrp5GIsNotNull(imsiStr);
         loadSiteCache();
         List<DeviceWithCellInfo> result = new ArrayList<>();
         for (AcsMaxBox5G d : devices) {
             DeviceWithCellInfo info = new DeviceWithCellInfo();
             info.setSerialNumber(d.getSerialNumber());
-            info.setMsisdn(d.getMsisdn());
-            info.setImei(d.getImei());
-            info.setIp(d.getIp());
-            info.setLastInform(d.getLastInform());
-            info.setRegistered(d.getRegistered());
-            info.setVersion(d.getVersion());
             info.setSinr(d.getSinr());
             info.setSinr5G(d.getSinr5G());
             info.setRsrp(d.getRsrp());
             info.setRsrp5G(d.getRsrp5G());
             info.setRsrq(d.getRsrq());
             info.setRsrq5G(d.getRsrq5G());
-            info.setImsi(d.getImsi());
+            if (d.getImsi() != null) { try { info.setImsi(Long.parseLong(d.getImsi().replace("\r", "").trim())); } catch (Exception e) { /* ignore */ } }
             info.setCellId(d.getCellId());
             info.setPci(d.getPci());
             info.setPci5G(d.getPci5G());
-            info.setDownlinkThroughput(d.getDownlinkThroughput());
-            info.setUplinkThroughput(d.getUplinkThroughput());
-            info.setIpData(d.getIpData());
-            info.setLastBoot(d.getLastBoot());
-            info.setApnData(d.getApnData());
+            info.setDownlinkMaxThrp(d.getDownlinkMaxThrp());
+            info.setUplinkMaxThrp(d.getUplinkMaxThrp());
 
             Optional<LteCellInfo> cellOpt = resolveCellInfo(d);
             if (cellOpt.isPresent()) {

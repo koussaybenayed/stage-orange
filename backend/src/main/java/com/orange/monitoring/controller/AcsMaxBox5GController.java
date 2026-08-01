@@ -24,7 +24,7 @@ public class AcsMaxBox5GController {
 
     @GetMapping
     public ResponseEntity<Page<AcsMaxBox5G>> getAllDevices(
-            @PageableDefault(size = 10, page = 0, sort = "lastInform", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 10, page = 0, sort = "timestamp", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<AcsMaxBox5G> devices = service.getAllDevices(pageable);
         return ResponseEntity.ok(devices);
     }
@@ -32,7 +32,7 @@ public class AcsMaxBox5GController {
     @GetMapping("/search")
     public ResponseEntity<Page<AcsMaxBox5G>> searchDevices(
             @RequestParam String searchTerm,
-            @PageableDefault(size = 10, page = 0, sort = "lastInform", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 10, page = 0, sort = "timestamp", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<AcsMaxBox5G> devices = service.searchDevices(searchTerm, pageable);
         return ResponseEntity.ok(devices);
     }

@@ -14,18 +14,11 @@ public class FixboxCombinedTable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "HLR_INDEX")
-    private Long hlrIndex;
-
-    @Column(name = "IMSI")
-    private Long imsi;
+    private Long id;
 
     @Column(name = "MSISDN")
-    private Long msisdn;
+    private Long fakeMsisdn;
 
-    @Column(name = "APNTPLID")
-    private Long apnTplId;
-
-    @Column(name = "APN_NAME")
-    private String apnName;
+    @Column(name = "IMSI")
+    private Long fakeImsi;
 }

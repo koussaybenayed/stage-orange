@@ -21,6 +21,7 @@
         <th>SINR 4G</th>
         <th>RSRP 5G</th>
         <th>SINR 5G</th>
+        <th>HZerror</th>
         <th>Actions</th>
       </tr>
     </thead>
@@ -37,6 +38,7 @@
         <td>{{ inc.sinr4G || '-' }}</td>
         <td>{{ inc.rsrp5G || '-' }}</td>
         <td>{{ inc.sinr5G || '-' }}</td>
+        <td class="hz-error">{{ inc.hzError || '-' }}</td>
         <td class="actions">
           <button class="btn-view" (click)="viewDevices(inc.msisdn)">Voir appareils</button>
         </td>

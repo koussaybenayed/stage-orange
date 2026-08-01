@@ -1,6 +1,5 @@
 package com.orange.monitoring.entity;
 
-import com.orange.monitoring.converter.TimestampToStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,72 +13,82 @@ import lombok.NoArgsConstructor;
 public class AcsMaxBox5G {
 
     @Id
-    @Column(name = "SerialNumber")
+    @Column(name = "SN")
     private String serialNumber;
 
-    @Column(name = "MSISDN")
-    private Double msisdn;
-
-    @Column(name = "IMEI")
-    private Double imei;
-
-    @Column(name = "IP")
-    private String ip;
-
-    @Column(name = "lastInform")
-    @Convert(converter = TimestampToStringConverter.class)
-    private String lastInform;
-
-    @Column(name = "registered")
-    @Convert(converter = TimestampToStringConverter.class)
-    private String registered;
-
-    @Column(name = "version")
-    private String version;
-
-    @Column(name = "SINR")
-    private String sinr;
-
-    @Column(name = "SINR5G")
-    private String sinr5G;
-
-    @Column(name = "RSRP")
-    private String rsrp;
-
-    @Column(name = "RSRP5G")
-    private String rsrp5G;
-
-    @Column(name = "RSRQ")
-    private String rsrq;
-
-    @Column(name = "RSRQ5G")
-    private String rsrq5G;
-
     @Column(name = "IMSI")
-    private Long imsi;
+    private String imsi;
 
-    @Column(name = "CellID")
+    public String getImsi() {
+        return imsi != null ? imsi.replace("\r", "").trim() : null;
+    }
+
+    @Column(name = "cellid")
     private String cellId;
 
-    @Column(name = "PCI")
+    @Column(name = "pci4g")
     private Double pci;
 
-    @Column(name = "PCI5G")
+    @Column(name = "pci5g")
     private Double pci5G;
 
-    @Column(name = "DownlinkThroughput")
-    private String downlinkThroughput;
+    @Column(name = "rsrp4g")
+    private String rsrp;
 
-    @Column(name = "UplinkThroughput")
-    private String uplinkThroughput;
+    @Column(name = "rsrp5g")
+    private String rsrp5G;
 
-    @Column(name = "IPData")
-    private String ipData;
+    @Column(name = "sinr4g")
+    private String sinr;
 
-    @Column(name = "lastBoot")
-    @Convert(converter = TimestampToStringConverter.class)
-    private String lastBoot;
+    @Column(name = "sinr5g")
+    private String sinr5G;
 
-    @Column(name = "APNDATA")
-    private String apnData;
+    @Column(name = "rsrq4g")
+    private String rsrq;
+
+    @Column(name = "rsrq5g")
+    private String rsrq5G;
+
+    @Column(name = "uplink_max_thrp")
+    private String uplinkMaxThrp;
+
+    @Column(name = "downlink_max_thrp")
+    private String downlinkMaxThrp;
+
+    @Column(name = "deviceId")
+    private String deviceId;
+
+    @Column(name = "productclass")
+    private String productclass;
+
+    @Column(name = "rscp4g")
+    private String rscp4g;
+
+    @Column(name = "rscp5g")
+    private String rscp5g;
+
+    @Column(name = "rssi4g")
+    private String rssi4g;
+
+    @Column(name = "rssi5g")
+    private String rssi5g;
+
+    @Column(name = "signalquality")
+    private String signalquality;
+
+    @Column(name = "linkquality")
+    private String linkquality;
+
+    @Column(name = "date")
+    private String date;
+
+    @Column(name = "type")
+    private String type;
+
+    @Column(name = "hour")
+    private String hour;
+
+    @Column(name = "timestamp")
+    private String timestamp;
 }

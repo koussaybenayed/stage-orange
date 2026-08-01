@@ -15,18 +15,15 @@ public interface AcsMaxBox5GRepository extends JpaRepository<AcsMaxBox5G, String
 
     @Query("SELECT d FROM AcsMaxBox5G d WHERE " +
             "LOWER(d.serialNumber) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-            "LOWER(d.ip) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-            "LOWER(d.version) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(d.deviceId) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
             "LOWER(d.cellId) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
     Page<AcsMaxBox5G> searchDevices(@Param("searchTerm") String searchTerm, Pageable pageable);
 
     Page<AcsMaxBox5G> findBySerialNumberContainingIgnoreCase(String serialNumber, Pageable pageable);
 
-    Page<AcsMaxBox5G> findByIpContainingIgnoreCase(String ip, Pageable pageable);
+    @Query(value = "SELECT * FROM acsmaxbox_5g WHERE CAST(REPLACE(IMSI, CHAR(13), '') AS CHAR(20)) = :imsi AND rsrp5g IS NOT NULL", nativeQuery = true)
+    List<AcsMaxBox5G> findByImsiAndRsrp5GIsNotNull(@Param("imsi") String imsi);
 
-    Page<AcsMaxBox5G> findByVersionContainingIgnoreCase(String version, Pageable pageable);
-
-    List<AcsMaxBox5G> findByImsiAndRsrp5GIsNotNull(Long imsi);
-
-    List<AcsMaxBox5G> findAllByImsiIn(List<Long> imsis);
+    @Query(value = "SELECT * FROM acsmaxbox_latest_incidents WHERE CAST(REPLACE(IMSI, CHAR(13), '') AS CHAR(20)) IN (:imsis)", nativeQuery = true)
+    List<AcsMaxBox5G> findAllByImsiIn(@Param("imsis") List<String> imsis);
 }

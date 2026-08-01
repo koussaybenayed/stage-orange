@@ -18,4 +18,10 @@ public class NrCell {
 
     @Column(name = "Cell_Name")
     private String cellName;
+
+    @Column(name = "Physical_Cell_ID")
+    private Long physicalCellId;
+
+    @Column(name = "cl\u00e9")
+    private String cle;
 }

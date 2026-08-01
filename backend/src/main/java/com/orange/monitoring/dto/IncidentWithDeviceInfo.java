@@ -19,6 +19,7 @@ public class IncidentWithDeviceInfo {
     private String rsrp5G;
     private String sinr5G;
     private String cellName5G;
+    private String hzError;
     private Long debugImsi;
     private Double latitude;
     private Double longitude;

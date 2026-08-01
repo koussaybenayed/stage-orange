@@ -14,19 +14,19 @@ import lombok.NoArgsConstructor;
 public class ReUn22906 {
 
     @Id
-    @Column(name = "Num_ro_de_la_demande")
+    @Column(name = "Num\u00e9ro_de_la_demande")
     private String requestNumber;
 
-    @Column(name = "Cr___le")
+    @Column(name = "Cr\u00e9\u00e9_le")
     @Convert(converter = TimestampToStringConverter.class)
     private String created;
 
     @Column(name = "Sujet")
     private String sujet;
 
-    @Column(name = "MSISDN_concern_")
+    @Column(name = "MSISDN_concern\u00e9")
     private Long msisdn;
 
-    @Column(name = "Offre__Contrat_")
+    @Column(name = "Offre__Contrat")
     private String offreContrat;
 }
