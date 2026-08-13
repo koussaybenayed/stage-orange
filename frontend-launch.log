@@ -1,0 +1,29 @@
+
+> device-monitoring-frontend@1.0.0 start
+> ng serve --proxy-config proxy.conf.json
+
+
+Initial chunk files   | Names         |  Raw size
+vendor.js             | vendor        |   4.10 MB | 
+polyfills.js          | polyfills     | 262.60 kB | 
+main.js               | main          | 242.35 kB | 
+styles.css, styles.js | styles        | 172.85 kB | 
+runtime.js            | runtime       |   6.55 kB | 
+
+                      | Initial total |   4.77 MB
+
+Build at: 2026-08-11T10:07:56.373Z - Hash: b4eda783221cf831 - Time: 13300ms
+
+** Angular Live Development Server is listening on localhost:4200, open your browser on http://localhost:4200/ **
+
+
+√ Compiled successfully.
+
+Initial chunk files | Names   | Raw size
+runtime.js          | runtime |  6.55 kB | 
+
+4 unchanged chunks
+
+Build at: 2026-08-11T10:07:59.613Z - Hash: b30f156edf5b8d02 - Time: 3102ms
+
+√ Compiled successfully.

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AcsMaxBox5G, Incident, IncidentWithDeviceInfo, PageResponse } from '../models/device.model';
+import { AcsMaxBox5G, Incident, IncidentOverview, IncidentWithDeviceInfo, NameCount, PageResponse, TopZonesResponse } from '../models/device.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -66,5 +66,30 @@ export class DeviceService {
 
   getDevicesByMsisdn(msisdn: number): Observable<AcsMaxBox5G[]> {
     return this.http.get<AcsMaxBox5G[]>(`${this.apiUrl}/by-msisdn/${msisdn}`);
+  }
+
+  getIncidentOverview(): Observable<IncidentOverview> {
+    return this.http.get<IncidentOverview>(`${this.incidentUrl}/stats/overview`);
+  }
+
+  getIncidentStatsByType(): Observable<NameCount[]> {
+    return this.http.get<NameCount[]>(`${this.incidentUrl}/stats/by-type`);
+  }
+
+  getIncidentStatsByOffre(): Observable<NameCount[]> {
+    return this.http.get<NameCount[]>(`${this.incidentUrl}/stats/by-offre`);
+  }
+
+  getIncidentStatsByDate(): Observable<NameCount[]> {
+    return this.http.get<NameCount[]>(`${this.incidentUrl}/stats/by-date`);
+  }
+
+  getHzErrorDistribution(): Observable<NameCount[]> {
+    return this.http.get<NameCount[]>(`${this.incidentUrl}/stats/hzerror`);
+  }
+
+  getTopZones(limit: number = 10): Observable<TopZonesResponse> {
+    const params = new HttpParams().set('limit', limit.toString());
+    return this.http.get<TopZonesResponse>(`${this.incidentUrl}/top-zones`, { params });
   }
 }

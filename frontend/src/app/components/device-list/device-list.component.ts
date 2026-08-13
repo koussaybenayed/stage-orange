@@ -1,7 +1,9 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
+import { timeout } from 'rxjs/operators';
 import { DeviceService } from '../../services/device.service';
 import { IncidentWithDeviceInfo } from '../../models/device.model';
+import { hzErrorTranslation } from '../../models/hz-error-translations';
 
 @Component({
   selector: 'app-device-list',
@@ -10,7 +12,22 @@ import { IncidentWithDeviceInfo } from '../../models/device.model';
 })
 export class DeviceListComponent implements OnInit {
   incidents: IncidentWithDeviceInfo[] = [];
+  filteredIncidents: IncidentWithDeviceInfo[] = [];
+  pagedIncidents: IncidentWithDeviceInfo[] = [];
   isLoading = false;
+  errorMessage = '';
+
+  filterHzError = '';
+  filterOffre = '';
+  filterCongestion = '';
+
+  pageSize = 20;
+  currentPage = 0;
+  offerContrats: string[] = [];
+  hzErrorTypes: string[] = [];
+
+  skeletonRows = Array(8).fill(0);
+  skeletonCols = Array(15).fill(0);
 
   constructor(private deviceService: DeviceService, private router: Router) { }
 
@@ -20,19 +37,194 @@ export class DeviceListComponent implements OnInit {
 
   loadIncidents(): void {
     this.isLoading = true;
-    this.deviceService.getIncidentsWithDeviceInfo().subscribe(
-      (data) => {
-        this.incidents = data;
-        this.isLoading = false;
-      },
-      (error) => {
-        console.error('Error loading incidents', error);
-        this.isLoading = false;
+    this.errorMessage = '';
+    this.deviceService.getIncidentsWithDeviceInfo()
+      .pipe(timeout(60000))
+      .subscribe({
+        next: (data) => {
+          this.isLoading = false;
+          try {
+            this.incidents = data;
+            this.loadOfferContrats();
+            this.loadHzErrorTypes();
+            this.applyFilters();
+          } catch (err) {
+            console.error('Error processing incidents', err);
+            this.errorMessage = 'Erreur lors du traitement des incidents.';
+          }
+        },
+        error: (error) => {
+          console.error('Error loading incidents', error);
+          this.errorMessage = 'Impossible de charger les incidents. Vérifiez que le backend est démarré.';
+          this.isLoading = false;
+        }
+      });
+  }
+
+  private loadOfferContrats(): void {
+    const set = new Set<string>();
+    for (const inc of this.incidents) {
+      if (inc.offreContrat) {
+        set.add(inc.offreContrat);
       }
-    );
+    }
+    this.offerContrats = Array.from(set).sort();
+  }
+
+  private loadHzErrorTypes(): void {
+    const set = new Set<string>();
+    for (const inc of this.incidents) {
+      for (const status of this.hzErrorStatuses(inc)) {
+        set.add(status);
+      }
+    }
+    this.hzErrorTypes = Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  private hzErrorStatuses(inc: IncidentWithDeviceInfo): string[] {
+    const hz = inc.hzError;
+    if (!hz) return [];
+    const out: string[] = [];
+    for (const part of hz.split(',')) {
+      const p = part.trim();
+      if (!p) continue;
+      const m = p.match(/^(.*?)\((\d+)\)$/);
+      out.push(m ? m[1].trim() : p);
+    }
+    return out;
+  }
+
+  onChangeHzError(): void {
+    this.applyFilters();
+  }
+
+  onChangeOffre(): void {
+    this.applyFilters();
+  }
+
+  onChangeCongestion(): void {
+    this.applyFilters();
+  }
+
+  applyFilters(): void {
+    const hz = this.filterHzError?.trim() || '';
+    this.filteredIncidents = this.incidents.filter(inc => {
+      const hzMatch = !hz || this.hzErrorStatuses(inc).some(s => s === hz);
+      const offreMatch = !this.filterOffre || inc.offreContrat === this.filterOffre;
+      const congMatch = !this.filterCongestion ||
+        (this.filterCongestion === 'true' && !!inc.congestionnee) ||
+        (this.filterCongestion === 'false' && !inc.congestionnee);
+      return hzMatch && offreMatch && congMatch;
+    });
+    this.currentPage = 0;
+    this.applyPaging();
+  }
+
+  applyPaging(): void {
+    const start = this.currentPage * this.pageSize;
+    this.pagedIncidents = this.filteredIncidents.slice(start, start + this.pageSize);
+  }
+
+  nextPage(): void {
+    if ((this.currentPage + 1) * this.pageSize < this.filteredIncidents.length) {
+      this.currentPage++;
+      this.applyPaging();
+    }
+  }
+
+  prevPage(): void {
+    if (this.currentPage > 0) {
+      this.currentPage--;
+      this.applyPaging();
+    }
+  }
+
+  get totalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredIncidents.length / this.pageSize));
+  }
+
+  async exportToExcel(): Promise<void> {
+    if (this.filteredIncidents.length === 0) return;
+
+    const XLSX = await import('xlsx');
+
+    const rows = this.filteredIncidents.map(inc => ({
+      'Numéro de demande': inc.requestNumber,
+      'Date de création': inc.created,
+      'Sujet': inc.sujet,
+      'MSISDN': inc.msisdn,
+      'Offre/Contrat': inc.offreContrat,
+      'Cell Name 4G': inc.cellName || '-',
+      'Cell Name 5G': inc.cellName5G || '-',
+      'Congestionnée': inc.congestionnee ? 'Oui' : 'Non',
+      'Action': inc.action || '-',
+      'RSRP 4G': inc.rsrp4G || '-',
+      'SINR 4G': inc.sinr4G || '-',
+      'RSRP 5G': inc.rsrp5G || '-',
+      'SINR 5G': inc.sinr5G || '-',
+      'HZerror': inc.hzError || '-',
+      'Latitude': inc.latitude ?? '',
+      'Longitude': inc.longitude ?? ''
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 20 }, { wch: 20 }, { wch: 32 }, { wch: 14 },
+      { wch: 24 }, { wch: 30 }, { wch: 26 }, { wch: 14 },
+      { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+      { wch: 10 }, { wch: 42 }, { wch: 12 }, { wch: 12 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Incidents');
+
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-');
+    XLSX.writeFile(wb, `incidents_${stamp}.xlsx`);
+  }
+
+  clearFilters(): void {
+    this.filterHzError = '';
+    this.filterOffre = '';
+    this.filterCongestion = '';
+    this.applyFilters();
   }
 
   viewDevices(msisdn: number): void {
     this.router.navigate(['/devices/by-msisdn', msisdn]);
+  }
+
+  hasLocation(inc: IncidentWithDeviceInfo): boolean {
+    return !!inc.latitude && !!inc.longitude;
+  }
+
+  viewOnMap(inc: IncidentWithDeviceInfo): void {
+    if (!this.hasLocation(inc)) return;
+    this.router.navigate(['/problem-map'], {
+      queryParams: {
+        lat: inc.latitude,
+        lng: inc.longitude,
+        incident: inc.requestNumber,
+        site: this.siteNameOf(inc)
+      }
+    });
+  }
+
+  hzErrorTooltip(inc: IncidentWithDeviceInfo): string {
+    if (!inc.hzError || inc.hzError === 'No HZ errors') {
+      return '';
+    }
+    return inc.hzError.split(',').map(p => {
+      const m = p.trim().match(/^(.*?)\((\d+)\)$/);
+      const raw = m ? m[1].trim() : p.trim();
+      const count = m ? ` (${m[2]})` : '';
+      const expl = hzErrorTranslation(raw);
+      return expl ? `${raw}${count} — ${expl}` : p.trim();
+    }).join(', ');
+  }
+
+  private siteNameOf(inc: IncidentWithDeviceInfo): string {
+    return inc.cellName && inc.cellName.length >= 8
+      ? inc.cellName.substring(0, 8)
+      : 'Site inconnu';
   }
 }

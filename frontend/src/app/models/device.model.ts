@@ -21,6 +21,24 @@ export interface IncidentWithDeviceInfo {
   hzError?: string;
   latitude?: number;
   longitude?: number;
+  congestionnee?: boolean;
+  action?: string;
+}
+
+export interface NameCount {
+  name: string;
+  count: number;
+}
+
+export interface IncidentOverview {
+  totalIncidents: number;
+  lastDay: number;
+  last7Days: number;
+}
+
+export interface TopZonesResponse {
+  zones: NameCount[];
+  totalSites: number;
 }
 
 export interface AcsMaxBox5G {

@@ -7,6 +7,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="https://www.orange.com/favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('orange-monitoring-theme');
+        var theme = stored === 'dark' || stored === 'light'
+          ? stored
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>

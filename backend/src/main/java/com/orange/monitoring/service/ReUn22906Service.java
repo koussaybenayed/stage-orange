@@ -1,6 +1,9 @@
 package com.orange.monitoring.service;
 
+import com.orange.monitoring.dto.IncidentOverview;
 import com.orange.monitoring.dto.IncidentWithDeviceInfo;
+import com.orange.monitoring.dto.NameCount;
+import com.orange.monitoring.dto.TopZonesResponse;
 import com.orange.monitoring.entity.AcsMaxBox5G;
 import com.orange.monitoring.entity.NrCell;
 import com.orange.monitoring.entity.ReUn22906;
@@ -14,6 +17,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -41,6 +46,11 @@ public class ReUn22906Service {
     private Map<String, Double[]> siteCache; // sitePrefix -> [lat, lng]
     private Map<String, String> lteCellCache; // "eNodeBId_localCellId" -> cellName
     private Map<String, String> nrCellCache; // cle -> cellName
+    private Map<String, String> etatCBandCache; // cell name -> action (etat_c_band)
+
+    private static final long HZ_MSISDN_OFFSET = 21600000000L;
+    private static final int HZ_WINDOW_DAYS = 3;
+    private static final DateTimeFormatter HZ_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public List<ReUn22906> getFilteredIncidents() {
         return repository.findFiltered(
@@ -80,6 +90,10 @@ public class ReUn22906Service {
                     info.setRsrp5G(device.getRsrp5G());
                     info.setSinr5G(device.getSinr5G());
                     resolveCellInfoCached(device, info);
+                    info.setCongestionnee(isCongestionnee(info.getCellName5G()));
+                    if (info.isCongestionnee()) {
+                        info.setAction(actionFor(info.getCellName5G()));
+                    }
                 }
             }
 
@@ -131,6 +145,32 @@ public class ReUn22906Service {
             } catch (Exception ignored) {}
             nrCellCache = map;
         }
+        if (etatCBandCache == null) {
+            Map<String, String> map = new HashMap<>();
+            try {
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT `\u00c9tiquettes_de_lignes`, `Action` FROM etat_c_band WHERE `\u00c9tiquettes_de_lignes` IS NOT NULL"
+                );
+                for (Map<String, Object> row : rows) {
+                    Object v = row.get("\u00c9tiquettes_de_lignes");
+                    if (v != null) {
+                        map.put(v.toString().trim(), row.get("Action") != null ? row.get("Action").toString() : null);
+                    }
+                }
+            } catch (Exception ignored) {}
+            etatCBandCache = map;
+        }
+    }
+
+    private boolean isCongestionnee(String cellName5G) {
+        return cellName5G != null && etatCBandCache != null && etatCBandCache.containsKey(cellName5G.trim());
+    }
+
+    private String actionFor(String cellName5G) {
+        if (cellName5G == null || etatCBandCache == null) {
+            return null;
+        }
+        return etatCBandCache.get(cellName5G.trim());
     }
 
     private Map<Long, List<AcsMaxBox5G>> buildDevicesByMsisdn(List<ReUn22906> incidents) {
@@ -182,6 +222,109 @@ public class ReUn22906Service {
         return result;
     }
 
+    public IncidentOverview getOverview() {
+        IncidentOverview overview = new IncidentOverview();
+        overview.setTotalIncidents(repository.countFilteredIncidents());
+        overview.setLastDay(repository.countLastDayIncidents());
+        overview.setLast7Days(repository.countLast7DaysIncidents());
+        return overview;
+    }
+
+    public List<NameCount> getTypeDistribution() {
+        return toNameCounts(repository.countByType());
+    }
+
+    public List<NameCount> getOffreDistribution() {
+        return toNameCounts(repository.countByOffre());
+    }
+
+    public List<NameCount> getDateDistribution() {
+        return toNameCounts(repository.countByDate());
+    }
+
+    private List<NameCount> toNameCounts(List<Object[]> rows) {
+        List<NameCount> result = new ArrayList<>();
+        for (Object[] row : rows) {
+            String name = row[0] != null ? row[0].toString() : "Inconnu";
+            long count = row[1] != null ? ((Number) row[1]).longValue() : 0L;
+            result.add(new NameCount(name, count));
+        }
+        return result;
+    }
+
+    public List<NameCount> getHzErrorDistribution() {
+        List<ReUn22906> incidents = getFilteredIncidents();
+        List<Long> msisdns = incidents.stream()
+                .map(ReUn22906::getMsisdn)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        if (msisdns.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<Long, String> createdByMsisdn = incidentCreatedByMsisdn(incidents);
+        Map<String, Long> counts = new HashMap<>();
+        for (Map<String, Object> row : fetchHzRows(hzMsisdns(msisdns))) {
+            if (!withinHzWindow(row, createdByMsisdn)) {
+                continue;
+            }
+            counts.merge(row.get("status").toString(), 1L, Long::sum);
+        }
+
+        return counts.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .map(e -> new NameCount(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
+    }
+
+    public TopZonesResponse getTopZones(int limit) {
+        List<ReUn22906> incidents = getFilteredIncidents();
+        Map<Long, List<AcsMaxBox5G>> devicesByMsisdn = buildDevicesByMsisdn(incidents);
+        loadCaches();
+
+        Map<String, Long> counts = new HashMap<>();
+        for (ReUn22906 inc : incidents) {
+            if (inc.getMsisdn() == null) continue;
+            List<AcsMaxBox5G> devices = devicesByMsisdn.get(inc.getMsisdn());
+            if (devices == null || devices.isEmpty()) continue;
+            String site = resolveSitePrefix(devices.get(0));
+            if (site != null) {
+                counts.merge(site, 1L, Long::sum);
+            }
+        }
+
+        List<NameCount> zones = counts.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .limit(limit)
+                .map(e -> new NameCount(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
+
+        return new TopZonesResponse(zones, (long) counts.size());
+    }
+
+    private String resolveSitePrefix(AcsMaxBox5G device) {
+        String cellId = device.getCellId();
+        if (cellId == null || !cellId.contains("-")) {
+            return null;
+        }
+        try {
+            String[] parts = cellId.split("-");
+            Long eNodeBId = Long.parseLong(parts[0].replaceFirst("^0+", ""));
+            Long localCellIdentity = Long.parseLong(parts[1]);
+            String rawCellName = lteCellCache != null ? lteCellCache.get(eNodeBId + "_" + localCellIdentity) : null;
+            if (rawCellName != null && rawCellName.length() >= 8) {
+                String sitePrefix = rawCellName.substring(0, 8);
+                if (siteCache != null && siteCache.containsKey(sitePrefix)) {
+                    return sitePrefix;
+                }
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
     private Map<Long, String> buildHzErrors(List<ReUn22906> incidents) {
         Map<Long, String> result = new HashMap<>();
         List<Long> msisdns = incidents.stream()
@@ -193,47 +336,74 @@ public class ReUn22906Service {
             return result;
         }
 
-        List<String> hzMsisdns = msisdns.stream()
-                .map(m -> String.valueOf(21600000000L + m))
-                .collect(Collectors.toList());
+        Map<Long, String> createdByMsisdn = incidentCreatedByMsisdn(incidents);
+        Map<Long, Map<String, Long>> countsByMsisdn = new HashMap<>();
+        for (Map<String, Object> row : fetchHzRows(hzMsisdns(msisdns))) {
+            if (!withinHzWindow(row, createdByMsisdn)) {
+                continue;
+            }
+            long incMsisdn = ((Number) row.get("MSISDN")).longValue() - HZ_MSISDN_OFFSET;
+            countsByMsisdn.computeIfAbsent(incMsisdn, k -> new HashMap<>())
+                    .merge(row.get("status").toString(), 1L, Long::sum);
+        }
 
+        for (Map.Entry<Long, Map<String, Long>> e : countsByMsisdn.entrySet()) {
+            List<Map.Entry<String, Long>> entries = new ArrayList<>(e.getValue().entrySet());
+            entries.sort((a, b) -> Long.compare(b.getValue(), a.getValue()));
+            List<String> errors = new ArrayList<>();
+            for (Map.Entry<String, Long> p : entries) {
+                errors.add(p.getKey() + " (" + p.getValue() + ")");
+            }
+            result.put(e.getKey(), String.join(", ", errors));
+        }
+        return result;
+    }
+
+    private List<String> hzMsisdns(List<Long> msisdns) {
+        return msisdns.stream()
+                .map(m -> String.valueOf(HZ_MSISDN_OFFSET + m))
+                .collect(Collectors.toList());
+    }
+
+    private Map<Long, String> incidentCreatedByMsisdn(List<ReUn22906> incidents) {
+        Map<Long, String> map = new HashMap<>();
+        for (ReUn22906 inc : incidents) {
+            if (inc.getMsisdn() != null) {
+                map.putIfAbsent(inc.getMsisdn(), inc.getCreated());
+            }
+        }
+        return map;
+    }
+
+    private List<Map<String, Object>> fetchHzRows(List<String> hzMsisdns) {
         StringBuilder sql = new StringBuilder(
-                "SELECT MSISDN, status, COUNT(*) AS cnt FROM hz WHERE MSISDN IN (");
+                "SELECT MSISDN, Time, status FROM hz WHERE MSISDN IN (");
         for (int i = 0; i < hzMsisdns.size(); i++) {
             if (i > 0) {
                 sql.append(",");
             }
             sql.append("?");
         }
-        sql.append(") AND status IS NOT NULL AND status <> '' GROUP BY MSISDN, status");
+        sql.append(") AND status IS NOT NULL AND status <> ''");
+        return jdbcTemplate.queryForList(sql.toString(), hzMsisdns.toArray());
+    }
 
-        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), hzMsisdns.toArray());
-
-        Map<Long, List<String[]>> perMsisdn = new HashMap<>();
-        for (Map<String, Object> row : rows) {
-            long incMsisdn = ((Number) row.get("MSISDN")).longValue() - 21600000000L;
-            String status = row.get("status").toString();
-            long cnt = ((Number) row.get("cnt")).longValue();
-            perMsisdn.computeIfAbsent(incMsisdn, k -> new ArrayList<>())
-                    .add(new String[]{status, String.valueOf(cnt)});
+    private boolean withinHzWindow(Map<String, Object> row, Map<Long, String> createdByMsisdn) {
+        Long hzMsisdn = ((Number) row.get("MSISDN")).longValue();
+        long incMsisdn = hzMsisdn - HZ_MSISDN_OFFSET;
+        String created = createdByMsisdn.get(incMsisdn);
+        Object timeObj = row.get("Time");
+        if (created == null || timeObj == null) {
+            return false;
         }
-
-        for (Map.Entry<Long, List<String[]>> e : perMsisdn.entrySet()) {
-            List<String[]> all = e.getValue();
-            all.sort((a, b) -> Long.compare(Long.parseLong(b[1]), Long.parseLong(a[1])));
-            List<String> errors = new ArrayList<>();
-            boolean anyRows = false;
-            for (String[] p : all) {
-                anyRows = true;
-                if (!"Authorized".equalsIgnoreCase(p[0])) {
-                    errors.add(p[0] + " (" + p[1] + ")");
-                }
-            }
-            if (anyRows) {
-                result.put(e.getKey(), errors.isEmpty() ? "No HZ errors" : String.join(", ", errors));
-            }
+        try {
+            LocalDateTime createdDt = LocalDateTime.parse(created, HZ_TIME_FORMAT);
+            LocalDateTime timeDt = LocalDateTime.parse(timeObj.toString(), HZ_TIME_FORMAT);
+            return !timeDt.isBefore(createdDt.minusDays(HZ_WINDOW_DAYS))
+                    && !timeDt.isAfter(createdDt.plusDays(HZ_WINDOW_DAYS));
+        } catch (Exception e) {
+            return false;
         }
-        return result;
     }
 
     private void resolveCellInfoCached(AcsMaxBox5G device, IncidentWithDeviceInfo info) {

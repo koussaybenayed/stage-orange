@@ -1,28 +1,105 @@
-<div class="problem-map-container">
-  <h2>Carte des problèmes</h2>
-
-  <div *ngIf="isLoading" class="loading">Chargement des données...</div>
-
-  <div *ngIf="!isLoading && errorMessage" class="no-results">{{ errorMessage }}</div>
-
-  <div *ngIf="!isLoading && incidents.length === 0 && !errorMessage" class="no-results">
-    Aucun incident trouvé.
+<div class="page">
+  <div class="page-header">
+    <h1>Carte des problèmes</h1>
+    <p class="text-muted">Répartition géographique des incidents MAXBOX 5G</p>
   </div>
 
-  <div *ngIf="!isLoading && incidents.length > 0" class="map-wrapper">
-    <div class="stats-bar">
-      <div class="stat-item">
-        <span class="stat-label">Incidents</span>
-        <span class="stat-value">{{ getTotalIncidents() }}</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">Sites concernés</span>
-        <span class="stat-value">{{ getTotalProblemSites() }}</span>
-      </div>
+  <!-- Skeleton map -->
+  <div *ngIf="isLoading" class="sk-map"></div>
+
+  <!-- Error state -->
+  <div class="card" *ngIf="!isLoading && errorMessage">
+    <div class="state state-error">
+      <span class="state-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <circle cx="12" cy="16" r="1"></circle>
+        </svg>
+      </span>
+      <div class="state-title">Erreur de chargement</div>
+      <div class="state-detail">{{ errorMessage }}</div>
+      <button class="btn-retry" (click)="loadIncidents()">Réessayer</button>
     </div>
   </div>
 
-  <div id="problem-map" class="map-container" [class.map-hidden]="isLoading || incidents.length === 0"></div>
+  <!-- Empty state -->
+  <div class="card" *ngIf="!isLoading && !errorMessage && incidents.length === 0">
+    <div class="state">
+      <span class="state-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+      </span>
+      <div class="state-title">Aucun incident</div>
+      <div class="state-detail">Aucun incident localisé pour l'instant.</div>
+    </div>
+  </div>
 
+  <!-- Controls (filter) -->
+  <div class="card controls-row fade-in" *ngIf="!isLoading && !errorMessage && incidents.length > 0">
+    <div class="filter-field">
+      <label for="incidentTypeFilter">Type d'incident</label>
+      <select id="incidentTypeFilter" [(ngModel)]="filterType" (ngModelChange)="onFilterTypeChange()">
+        <option value="all">Tous les incidents</option>
+        <option value="hzerror">HZerror</option>
+      </select>
+    </div>
+    <span class="controls-hint text-muted">
+      {{ getTotalIncidents() }} incident(s) affiché(s)
+      <ng-container *ngIf="filterType === 'hzerror'">(erreurs de home zone)</ng-container>
+    </span>
+  </div>
 
+  <!-- Stats bar -->
+  <div class="stats-bar fade-in" *ngIf="!isLoading && !errorMessage && incidents.length > 0">
+    <div class="stat-item">
+      <span class="stat-label">Incidents</span>
+      <span class="stat-value">{{ getTotalIncidents() }}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Sites concernés</span>
+      <span class="stat-value">{{ getTotalProblemSites() }}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">HZerror</span>
+      <span class="stat-value hz">{{ getHzErrorCount() }}</span>
+    </div>
+  </div>
+
+  <!-- Focus banner (from device-list navigation) -->
+  <div class="focus-banner fade-in" *ngIf="focusedTarget">
+    <span class="focus-dot"></span>
+    <span>Incident localisé sur la carte: <b>{{ focusedTarget }}</b></span>
+    <button class="focus-clear" (click)="clearFocus()" title="Effacer la surbrillance">&times;</button>
+  </div>
+
+  <!-- Map + top zones -->
+  <div class="map-layout" [class.map-hidden]="isLoading || incidents.length === 0">
+    <!-- Map (always present in DOM for Leaflet init, hidden until ready) -->
+    <div id="problem-map" class="map-container"></div>
+
+    <!-- Top zones -->
+    <div class="card top-zones fade-in">
+      <h3 class="top-zones-title">Top zones à problèmes</h3>
+      <ul class="top-zones-list" *ngIf="topZones.length > 0">
+        <li class="zone-row" *ngFor="let zone of topZones; let i = index" (click)="flyToZone(zone)" [title]="'Centrer la carte sur ' + zone.siteName">
+          <span class="zone-rank">{{ i + 1 }}</span>
+          <span class="zone-dot"
+                [class.dot-high]="zone.severity === 'high'"
+                [class.dot-medium]="zone.severity === 'medium'"
+                [class.dot-low]="zone.severity === 'low'"></span>
+          <span class="zone-name" [title]="zone.siteName">{{ zone.siteName }}</span>
+          <span class="badge"
+                [class.badge-danger]="zone.severity === 'high'"
+                [class.badge-warn]="zone.severity === 'medium'"
+                [class.badge-success]="zone.severity === 'low'">{{ zone.count }}</span>
+        </li>
+      </ul>
+      <div class="state" *ngIf="topZones.length === 0">
+        <span class="state-detail">Aucune zone localisée.</span>
+      </div>
+    </div>
+  </div>
 </div>

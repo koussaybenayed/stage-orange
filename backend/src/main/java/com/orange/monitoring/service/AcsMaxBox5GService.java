@@ -89,7 +89,7 @@ public class AcsMaxBox5GService {
     }
 
     public List<AcsMaxBox5G> getAllDevicesUnpaged() {
-        return repository.findAll();
+        return repository.findLatest(2000);
     }
 
     private void loadSiteCache() {

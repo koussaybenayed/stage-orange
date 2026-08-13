@@ -1,52 +1,125 @@
-<div class="dashboard-container">
-  <h2>Dashboard</h2>
+<div class="page">
+  <div class="page-header">
+    <h1>Dashboard</h1>
+    <p class="text-muted">Tableau de bord analytique des incidents MAXBOX 5G</p>
+  </div>
 
-  <div class="stats-grid">
-    <div class="stat-card">
-      <h3>Total Devices</h3>
-      <p class="stat-value">{{ totalDevices }}</p>
-    </div>
-    <div class="stat-card">
-      <h3>Online Devices</h3>
-      <p class="stat-value online">{{ getOnlineDevices() }}</p>
-    </div>
-    <div class="stat-card">
-      <h3>Offline Devices</h3>
-      <p class="stat-value offline">{{ getOfflineDevices() }}</p>
+  <!-- Error state -->
+  <div class="card" *ngIf="errorMessage">
+    <div class="state state-error">
+      <span class="state-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <circle cx="12" cy="16" r="1"></circle>
+        </svg>
+      </span>
+      <div class="state-title">Erreur de chargement</div>
+      <div class="state-detail">{{ errorMessage }}</div>
+      <button class="btn-retry" (click)="loadDashboard()">Réessayer</button>
     </div>
   </div>
 
-  <div *ngIf="isLoading" class="loading">Loading dashboard data...</div>
+  <!-- Skeleton stats -->
+  <div class="stats-grid" *ngIf="loadingOverview || loadingZones">
+    <div class="stat-card sk-stat" *ngFor="let s of skeletonStats">
+      <div class="sk-bar sk-bar-60"></div>
+      <div class="sk-bar sk-bar-40"></div>
+    </div>
+  </div>
 
-  <div *ngIf="!isLoading && devices.length > 0" class="charts-grid">
-    <div class="chart-card">
-      <h3>Signal Quality (Average)</h3>
-      <canvas 
-        baseChart
-        [data]="signalQualityChartData"
-        [options]="signalQualityChartOptions"
-        type="bar">
-      </canvas>
+  <!-- Stats -->
+  <div class="stats-grid fade-in" *ngIf="!loadingOverview && !loadingZones">
+    <div class="stat-card">
+      <h3>Incidents</h3>
+      <p class="stat-value">{{ totalIncidents }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>Sites concernés</h3>
+      <p class="stat-value sub">{{ totalSites }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>Dernier jour</h3>
+      <p class="stat-value sub">{{ lastDay }}</p>
+    </div>
+    <div class="stat-card">
+      <h3>7 derniers jours</h3>
+      <p class="stat-value sub">{{ last7Days }}</p>
+    </div>
+  </div>
+
+  <!-- Charts grid -->
+  <div class="charts-grid">
+
+    <!-- Incidents par type -->
+    <div class="sk-card" *ngIf="loadingType">
+      <div class="sk-bar sk-bar-40"></div>
+      <div class="sk-chart"></div>
+    </div>
+    <div class="chart-card fade-in" *ngIf="!loadingType && typeChartData.labels.length > 0">
+      <h3>Incidents par type</h3>
+      <canvas baseChart type="doughnut" [data]="typeChartData" [options]="typeChartOptions"></canvas>
+    </div>
+    <div class="chart-card" *ngIf="!loadingType && typeChartData.labels.length === 0">
+      <h3>Incidents par type</h3>
+      <p class="chart-empty">Aucune donnée.</p>
     </div>
 
-    <div class="chart-card">
-      <h3>Device Status Distribution</h3>
-      <canvas 
-        baseChart
-        [data]="deviceStatusChartData"
-        [options]="deviceStatusChartOptions"
-        type="doughnut">
-      </canvas>
+    <!-- Par offre / contrat -->
+    <div class="sk-card" *ngIf="loadingOffre">
+      <div class="sk-bar sk-bar-40"></div>
+      <div class="sk-chart"></div>
+    </div>
+    <div class="chart-card fade-in" *ngIf="!loadingOffre && offreChartData.labels.length > 0">
+      <h3>Répartition par offre / contrat</h3>
+      <canvas baseChart type="doughnut" [data]="offreChartData" [options]="offreChartOptions"></canvas>
+    </div>
+    <div class="chart-card" *ngIf="!loadingOffre && offreChartData.labels.length === 0">
+      <h3>Répartition par offre / contrat</h3>
+      <p class="chart-empty">Aucune donnée.</p>
     </div>
 
-    <div class="chart-card full-width">
-      <h3>Average Throughput</h3>
-      <canvas 
-        baseChart
-        [data]="throughputChartData"
-        [options]="throughputChartOptions"
-        type="line">
-      </canvas>
+    <!-- Évolution dans le temps -->
+    <div class="sk-card full-width" *ngIf="loadingDate">
+      <div class="sk-bar sk-bar-40"></div>
+      <div class="sk-chart"></div>
     </div>
+    <div class="chart-card full-width fade-in" *ngIf="!loadingDate && dateChartData.labels.length > 0">
+      <h3>Évolution quotidienne des incidents</h3>
+      <canvas baseChart type="line" [data]="dateChartData" [options]="dateChartOptions"></canvas>
+    </div>
+    <div class="chart-card full-width" *ngIf="!loadingDate && dateChartData.labels.length === 0">
+      <h3>Évolution quotidienne des incidents</h3>
+      <p class="chart-empty">Aucune donnée.</p>
+    </div>
+
+    <!-- Top régions -->
+    <div class="sk-card" *ngIf="loadingZones">
+      <div class="sk-bar sk-bar-40"></div>
+      <div class="sk-chart"></div>
+    </div>
+    <div class="chart-card fade-in" *ngIf="!loadingZones && zoneChartData.labels.length > 0">
+      <h3>Top régions / zones</h3>
+      <canvas baseChart type="bar" [data]="zoneChartData" [options]="zoneChartOptions"></canvas>
+    </div>
+    <div class="chart-card" *ngIf="!loadingZones && zoneChartData.labels.length === 0">
+      <h3>Top régions / zones</h3>
+      <p class="chart-empty">Aucune donnée.</p>
+    </div>
+
+    <!-- Distribution HZerror -->
+    <div class="sk-card" *ngIf="loadingHz">
+      <div class="sk-bar sk-bar-40"></div>
+      <div class="sk-chart"></div>
+    </div>
+    <div class="chart-card fade-in" *ngIf="!loadingHz && hzChartData.labels.length > 0">
+      <h3>Distribution HZerror</h3>
+      <canvas baseChart type="bar" [data]="hzChartData" [options]="hzChartOptions"></canvas>
+    </div>
+    <div class="chart-card" *ngIf="!loadingHz && hzChartData.labels.length === 0">
+      <h3>Distribution HZerror</h3>
+      <p class="chart-empty">Aucune donnée.</p>
+    </div>
+
   </div>
 </div>

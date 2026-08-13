@@ -1,0 +1,53 @@
+- Generating browser application bundles (phase: setup)...
+✔ Browser application bundle generation complete.
+
+Warning: C:\Users\MediaHelp\Downloads\stage orange\stage-orange\frontend\src\app\components\incident-devices\incident-devices.component.ts depends on 'leaflet'. CommonJS or AMD dependencies can cause optimization bailouts.
+For more info see: https://angular.io/guide/build#configuring-commonjs-dependencies
+
+
+✔ Browser application bundle generation complete.
+(node:30816) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+
+Warning: C:\Users\MediaHelp\Downloads\stage orange\stage-orange\frontend\src\app\components\problem-map\problem-map.component.ts depends on 'leaflet'. CommonJS or AMD dependencies can cause optimization bailouts.
+For more info see: https://angular.io/guide/build#configuring-commonjs-dependencies
+
+
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/device-list/device-list.component.ts:49:18 - error TS2551: Property 'loadHzErrorTypes' does not exist on type 'DeviceListComponent'. Did you mean 'hzErrorTypes'?
+
+49             this.loadHzErrorTypes();
+                    ~~~~~~~~~~~~~~~~
+
+  src/app/components/device-list/device-list.component.ts:27:3
+    27   hzErrorTypes: string[] = [];
+         ~~~~~~~~~~~~
+    'hzErrorTypes' is declared here.
+
+
+
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.

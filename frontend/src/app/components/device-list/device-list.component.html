@@ -1,52 +1,154 @@
-<div class="device-list-container">
-  <h2>Incidents MAXBOX 5G</h2>
-
-  <div *ngIf="isLoading" class="loading">Loading...</div>
-
-  <div *ngIf="!isLoading && incidents.length === 0" class="no-results">
-    No incidents found.
+<div class="page">
+  <div class="page-header">
+    <h1>Incidents MAXBOX 5G</h1>
+    <p class="text-muted">Suivi des incidents avec informations appareil</p>
   </div>
 
-  <table *ngIf="!isLoading && incidents.length > 0" class="devices-table">
-    <thead>
-      <tr>
-        <th>Numero de demande</th>
-        <th>Date de creation</th>
-        <th>Sujet</th>
-        <th>MSISDN</th>
-        <th>Offre/Contrat</th>
-        <th>Cell Name 4G</th>
-        <th>Cell Name 5G</th>
-        <th>RSRP 4G</th>
-        <th>SINR 4G</th>
-        <th>RSRP 5G</th>
-        <th>SINR 5G</th>
-        <th>HZerror</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let inc of incidents">
-        <td>{{ inc.requestNumber }}</td>
-        <td>{{ inc.created | date: 'short' }}</td>
-        <td>{{ inc.sujet }}</td>
-        <td>{{ inc.msisdn }}</td>
-        <td>{{ inc.offreContrat }}</td>
-        <td>{{ inc.cellName || '-' }}</td>
-        <td>{{ inc.cellName5G || '-' }}</td>
-        <td>{{ inc.rsrp4G || '-' }}</td>
-        <td>{{ inc.sinr4G || '-' }}</td>
-        <td>{{ inc.rsrp5G || '-' }}</td>
-        <td>{{ inc.sinr5G || '-' }}</td>
-        <td class="hz-error">{{ inc.hzError || '-' }}</td>
-        <td class="actions">
-          <button class="btn-view" (click)="viewDevices(inc.msisdn)">Voir appareils</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div *ngIf="!isLoading && incidents.length > 0" class="record-count">
-    Total: {{ incidents.length }} incidents
+  <!-- Skeleton while loading -->
+  <div class="card" *ngIf="isLoading">
+    <div class="skeleton">
+      <div class="sk-row" *ngFor="let row of skeletonRows">
+        <div class="sk-cell" *ngFor="let c of skeletonCols"></div>
+      </div>
+    </div>
   </div>
+
+  <!-- Error state -->
+  <div class="card" *ngIf="!isLoading && errorMessage">
+    <div class="state state-error">
+      <span class="state-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <circle cx="12" cy="16" r="1"></circle>
+        </svg>
+      </span>
+      <div class="state-title">Erreur de chargement</div>
+      <div class="state-detail">{{ errorMessage }}</div>
+      <button class="btn-retry" (click)="loadIncidents()">Réessayer</button>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="card" *ngIf="!isLoading && !errorMessage && incidents.length === 0">
+    <div class="state">
+      <span class="state-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+        </svg>
+      </span>
+      <div class="state-title">Aucun incident</div>
+      <div class="state-detail">Aucun incident ne correspond aux critères actuels.</div>
+    </div>
+  </div>
+
+  <ng-container *ngIf="!isLoading && !errorMessage && incidents.length > 0">
+
+    <div class="card filters-bar">
+      <div class="filter-field">
+        <label for="hzFilter">HZerror</label>
+        <select id="hzFilter" [(ngModel)]="filterHzError" (ngModelChange)="onChangeHzError()">
+          <option value="">Tous</option>
+          <option *ngFor="let hzType of hzErrorTypes" [value]="hzType">{{ hzType }}</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="offreFilter">Offre/Contrat</label>
+        <select id="offreFilter" [(ngModel)]="filterOffre" (ngModelChange)="onChangeOffre()">
+          <option value="">Toutes</option>
+          <option *ngFor="let oc of offerContrats" [value]="oc">{{ oc }}</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label for="congFilter">Congestionné</label>
+        <select id="congFilter" [(ngModel)]="filterCongestion" (ngModelChange)="onChangeCongestion()">
+          <option value="">Tous</option>
+          <option value="true">Congestionné (✓)</option>
+          <option value="false">Non congestionné (X)</option>
+        </select>
+      </div>
+      <button class="btn-clear" (click)="clearFilters()">Effacer filtres</button>
+      <button class="btn-export" (click)="exportToExcel()" [disabled]="filteredIncidents.length === 0"
+              title="Exporter les incidents filtrés en Excel">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Exporter Excel
+      </button>
+    </div>
+
+    <div class="table-wrap fade-in">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Numero de demande</th>
+            <th>Date de creation</th>
+            <th>Sujet</th>
+            <th>MSISDN</th>
+            <th>Offre/Contrat</th>
+            <th>Cell Name 4G</th>
+            <th>Cell Name 5G</th>
+            <th>Congestionnée</th>
+            <th>Action</th>
+            <th>RSRP 4G</th>
+            <th>SINR 4G</th>
+            <th>RSRP 5G</th>
+            <th>SINR 5G</th>
+            <th>HZerror</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let inc of pagedIncidents">
+            <td class="mono">{{ inc.requestNumber }}</td>
+            <td>{{ inc.created | date: 'short' }}</td>
+            <td>{{ inc.sujet }}</td>
+            <td class="mono">{{ inc.msisdn }}</td>
+            <td>{{ inc.offreContrat }}</td>
+            <td>{{ inc.cellName || '-' }}</td>
+            <td>{{ inc.cellName5G || '-' }}</td>
+            <td class="cong-cell">
+              <span *ngIf="inc.congestionnee" class="badge-cong badge-oui"
+                    title="Cellule 5G présente dans l'état C-band">✓</span>
+              <span *ngIf="!inc.congestionnee" class="badge-cong badge-non"
+                    title="Cellule 5G absente de l'état C-band">X</span>
+            </td>
+            <td>{{ inc.action || '-' }}</td>
+            <td>{{ inc.rsrp4G || '-' }}</td>
+            <td>{{ inc.sinr4G || '-' }}</td>
+            <td>{{ inc.rsrp5G || '-' }}</td>
+            <td>{{ inc.sinr5G || '-' }}</td>
+            <td>
+              <span class="hz-error" [class.has-error]="inc.hzError && inc.hzError !== 'No HZ errors'"
+                    [title]="hzErrorTooltip(inc)">
+                {{ inc.hzError || '-' }}
+              </span>
+              <span class="hz-error-expl" *ngIf="hzErrorTooltip(inc)">
+                {{ hzErrorTooltip(inc) }}
+              </span>
+            </td>
+            <td class="actions">
+              <button class="btn-view" (click)="viewDevices(inc.msisdn)">Voir appareils</button>
+              <button class="btn-view btn-map" [disabled]="!hasLocation(inc)"
+                      [title]="hasLocation(inc) ? 'Localiser l\'incident sur la carte' : 'Localisation non disponible'"
+                      (click)="viewOnMap(inc)">Voir sur la carte</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      <span class="text-muted">Total: {{ filteredIncidents.length }} incident(s)</span>
+      <div class="pagination" *ngIf="totalPages > 1">
+        <button class="btn-page" [disabled]="currentPage === 0" (click)="prevPage()">Précédent</button>
+        <span>Page {{ currentPage + 1 }} / {{ totalPages }}</span>
+        <button class="btn-page" [disabled]="(currentPage + 1) * pageSize >= filteredIncidents.length" (click)="nextPage()">Suivant</button>
+      </div>
+    </div>
+
+  </ng-container>
 </div>

@@ -23,4 +23,6 @@ public class IncidentWithDeviceInfo {
     private Long debugImsi;
     private Double latitude;
     private Double longitude;
+    private boolean congestionnee;
+    private String action;
 }

@@ -1,69 +1,197 @@
-.problem-map-container {
-  padding: 0;
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
-h2 {
-  color: var(--dark);
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
+.page-header h1 {
+  font-size: 1.6rem;
+  margin: 0 0 2px 0;
 }
 
-.loading, .no-results {
-  text-align: center;
-  padding: 4rem 2rem;
-  color: var(--gray);
-  font-size: 1.1rem;
+/* ---------- Controls (filter) ---------- */
+.controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 16px 20px;
 }
 
-.map-wrapper {
-  background: var(--white);
+.filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.filter-field select {
+  padding: 9px 12px;
+  border: 1px solid var(--border-strong);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  padding: 1.5rem;
+  font-size: 0.9rem;
+  min-width: 220px;
+  background: var(--surface);
+  color: var(--text);
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
+.filter-field select:focus {
+  outline: none;
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.controls-hint {
+  font-size: 0.88rem;
+  padding-bottom: 8px;
+}
+
+/* ---------- Stats ---------- */
 .stats-bar {
   display: flex;
-  gap: 2rem;
-  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1rem 2rem;
-  background: var(--light-gray);
-  border-radius: 8px;
-  min-width: 150px;
+  padding: 14px 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  min-width: 160px;
 }
 
 .stat-label {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
-  color: var(--gray);
-  letter-spacing: 0.5px;
-  margin-bottom: 0.3rem;
+  color: var(--text-2);
+  letter-spacing: 0.6px;
+  margin-bottom: 4px;
+  font-weight: 600;
 }
 
 .stat-value {
   font-size: 2rem;
-  font-weight: bold;
+  font-weight: 700;
   color: var(--orange);
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-value.hz {
+  color: var(--warn);
+}
+
+/* ---------- Map + top zones layout ---------- */
+.map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+.map-layout.map-hidden {
+  display: none;
 }
 
 .map-container {
   height: 500px;
   width: 100%;
-  margin-bottom: 2rem;
-  border-radius: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
   z-index: 1;
 }
 
-.map-container.map-hidden {
-  display: none;
+.map-container .leaflet-container {
+  z-index: 1;
+  background: var(--surface-2);
 }
 
+/* ---------- Top zones ---------- */
+.top-zones {
+  padding: 18px;
+  max-height: 500px;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-zones-title {
+  margin: 0 0 12px 0;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+
+.top-zones-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.zone-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.zone-row:hover {
+  background: var(--surface-2);
+}
+
+.zone-rank {
+  width: 20px;
+  flex-shrink: 0;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.zone-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-high   { background: var(--danger); }
+.dot-medium { background: var(--warn); }
+.dot-low    { background: var(--success); }
+
+.zone-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zone-row .badge {
+  flex-shrink: 0;
+  min-width: 34px;
+  justify-content: center;
+}
+
+/* ---------- Leaflet markers / popups ---------- */
 :host ::ng-deep .problem-marker {
   background: none !important;
   border: none !important;
@@ -77,7 +205,7 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 :host ::ng-deep .marker-pin span {
@@ -89,7 +217,7 @@ h2 {
 
 :host ::ng-deep .popup-content h4 {
   margin: 0 0 0.3rem 0;
-  color: var(--dark);
+  color: var(--text);
 }
 
 :host ::ng-deep .popup-content p {
@@ -101,4 +229,88 @@ h2 {
   margin: 0;
   padding-left: 1.2rem;
   font-size: 0.85rem;
+}
+
+/* ---------- Focus banner (navigation from device-list) ---------- */
+.focus-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--orange);
+  border-left: 4px solid var(--orange);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.focus-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+  flex-shrink: 0;
+}
+
+.focus-clear {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-size: 1.3rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.focus-clear:hover {
+  color: var(--text);
+}
+
+/* ---------- Pulse highlight ---------- */
+:host ::ng-deep .pulse-icon {
+  background: none !important;
+  border: none !important;
+}
+
+:host ::ng-deep .pulse-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0 4px var(--focus-ring);
+}
+
+:host ::ng-deep .pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border: 3px solid var(--orange);
+  border-radius: 50%;
+  animation: pulse-ring 1.4s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.35); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+  .map-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .top-zones {
+    max-height: none;
+  }
 }

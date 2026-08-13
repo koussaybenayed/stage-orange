@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { timeout } from 'rxjs/operators';
 import { DeviceService } from '../../services/device.service';
 import { AcsMaxBox5G } from '../../models/device.model';
 
@@ -28,18 +29,20 @@ export class DeviceDetailComponent implements OnInit {
     const id = this.route.snapshot.params['id'];
     if (id) {
       this.isLoading = true;
-      this.deviceService.getDeviceById(id).subscribe(
-        (data) => {
-          this.device = data;
-          this.editForm = { ...data };
-          this.isLoading = false;
-        },
-        (error) => {
-          console.error('Error loading device', error);
-          this.isLoading = false;
-          this.router.navigate(['/devices']);
-        }
-      );
+      this.deviceService.getDeviceById(id)
+        .pipe(timeout(30000))
+        .subscribe(
+          (data) => {
+            this.device = data;
+            this.editForm = { ...data };
+            this.isLoading = false;
+          },
+          (error) => {
+            console.error('Error loading device', error);
+            this.isLoading = false;
+            this.router.navigate(['/devices']);
+          }
+        );
     }
   }
 

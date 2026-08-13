@@ -1,42 +1,74 @@
-<div class="container">
-  <button class="btn-back" (click)="goBack()">← Retour</button>
+<div class="page">
+  <button class="btn-back" (click)="goBack()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+    Retour
+  </button>
 
-  <h2>Appareils pour MSISDN: {{ msisdn }}</h2>
+  <div class="page-header">
+    <h1>Appareils pour MSISDN: <span class="mono">{{ msisdn }}</span></h1>
+    <p class="text-muted">Détail des appareils associés à cet incident</p>
+  </div>
 
-  <div *ngIf="isLoading" class="loading">Chargement...</div>
+  <!-- Skeleton -->
+  <div class="card" *ngIf="isLoading">
+    <div class="skeleton">
+      <div class="sk-row" *ngFor="let row of skeletonRows">
+        <div class="sk-cell" *ngFor="let c of skeletonCols"></div>
+      </div>
+    </div>
+  </div>
 
-  <div *ngIf="!isLoading && errorMessage" class="no-results">{{ errorMessage }}</div>
+  <!-- Empty / message state -->
+  <div class="card" *ngIf="!isLoading && errorMessage">
+    <div class="state">
+      <span class="state-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+        </svg>
+      </span>
+      <div class="state-title">{{ errorMessage }}</div>
+      <button class="btn-retry" (click)="loadDevices()">Réessayer</button>
+    </div>
+  </div>
 
+  <!-- Map (always present for Leaflet init) -->
   <div id="device-map" class="map-container" [class.map-hidden]="!showMap"></div>
 
-  <table *ngIf="!isLoading && devices.length > 0" class="devices-table">
-    <thead>
-      <tr>
-        <th>Serial Number</th>
-        <th>IP</th>
-        <th>Version</th>
-        <th>IMSI</th>
-        <th>RSRP5G</th>
-        <th>SINR5G</th>
-        <th>RSRQ5G</th>
-        <th>Cell Name</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let device of devices">
-        <td>{{ device.serialNumber }}</td>
-        <td>{{ device.ip }}</td>
-        <td>{{ device.version }}</td>
-        <td>{{ device.imsi }}</td>
-        <td>{{ device.rsrp5G || '-' }}</td>
-        <td>{{ device.sinr5G || '-' }}</td>
-        <td>{{ device.rsrq5G || '-' }}</td>
-        <td>{{ device.cellName || '-' }}</td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- Devices table -->
+  <div class="table-wrap fade-in" *ngIf="!isLoading && devices.length > 0">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Serial Number</th>
+          <th>IP</th>
+          <th>Version</th>
+          <th>IMSI</th>
+          <th>RSRP5G</th>
+          <th>SINR5G</th>
+          <th>RSRQ5G</th>
+          <th>Cell Name</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let device of devices">
+          <td class="mono">{{ device.serialNumber }}</td>
+          <td class="mono">{{ device.ip }}</td>
+          <td>{{ device.version }}</td>
+          <td class="mono">{{ device.imsi }}</td>
+          <td>{{ device.rsrp5G || '-' }}</td>
+          <td>{{ device.sinr5G || '-' }}</td>
+          <td>{{ device.rsrq5G || '-' }}</td>
+          <td>{{ device.cellName || '-' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-  <div *ngIf="!isLoading && devices.length > 0" class="record-count">
-    Total: {{ devices.length }} appareil(s)
+  <div class="pager" *ngIf="!isLoading && devices.length > 0">
+    <span class="text-muted">Total: {{ devices.length }} appareil(s)</span>
   </div>
 </div>

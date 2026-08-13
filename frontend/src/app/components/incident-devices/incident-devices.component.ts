@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, AfterViewInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { timeout } from 'rxjs/operators';
 import { DeviceService } from '../../services/device.service';
 import { AcsMaxBox5G } from '../../models/device.model';
 import * as L from 'leaflet';
@@ -20,6 +21,9 @@ export class IncidentDevicesComponent implements OnInit, AfterViewInit, OnDestro
   private map: L.Map | undefined;
   private markerLayer: L.LayerGroup = L.layerGroup();
   private paramSub: Subscription | undefined;
+
+  skeletonRows = Array(5).fill(0);
+  skeletonCols = Array(8).fill(0);
 
   constructor(
     private route: ActivatedRoute,
@@ -77,28 +81,35 @@ export class IncidentDevicesComponent implements OnInit, AfterViewInit, OnDestro
     this.showMap = false;
     this.markerLayer.clearLayers();
 
-    this.deviceService.getDevicesByMsisdn(this.msisdn).subscribe({
-      next: (data) => {
-        this.devices = data;
-        this.isLoading = false;
-        if (data.length === 0) {
-          this.errorMessage = 'Aucun appareil trouvé avec RSRP5G non null pour ce MSISDN.';
-          return;
+    this.deviceService.getDevicesByMsisdn(this.msisdn)
+      .pipe(timeout(60000))
+      .subscribe({
+        next: (data) => {
+          this.isLoading = false;
+          try {
+            this.devices = data;
+            if (data.length === 0) {
+              this.errorMessage = 'Aucun appareil trouvé avec RSRP5G non null pour ce MSISDN.';
+              return;
+            }
+            const hasLocation = data.some(d => d.latitude && d.longitude);
+            this.showMap = hasLocation;
+            if (!hasLocation || !this.map) return;
+            setTimeout(() => {
+              this.map?.invalidateSize();
+              this.addMarkers();
+            }, 100);
+          } catch (err) {
+            console.error('Error processing devices', err);
+            this.errorMessage = 'Erreur lors du traitement des appareils.';
+          }
+        },
+        error: (error) => {
+          console.error('Error loading devices by MSISDN', error);
+          this.errorMessage = 'Erreur lors du chargement des appareils.';
+          this.isLoading = false;
         }
-        const hasLocation = data.some(d => d.latitude && d.longitude);
-        this.showMap = hasLocation;
-        if (!hasLocation || !this.map) return;
-        setTimeout(() => {
-          this.map?.invalidateSize();
-          this.addMarkers();
-        }, 100);
-      },
-      error: (error) => {
-        console.error('Error loading devices by MSISDN', error);
-        this.errorMessage = 'Erreur lors du chargement des appareils.';
-        this.isLoading = false;
-      }
-    });
+      });
   }
 
   private addMarkers(): void {

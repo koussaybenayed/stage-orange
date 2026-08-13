@@ -1,45 +1,43 @@
-.container {
-  background: var(--white);
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  padding: 2rem;
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.page-header h1 {
+  font-size: 1.6rem;
+  margin: 0 0 2px 0;
 }
 
 .btn-back {
-  padding: 0.4rem 0.8rem;
-  background: transparent;
-  color: var(--orange);
-  border: 1px solid var(--orange);
-  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 9px 16px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: 500;
-  font-size: 0.85rem;
-  margin-bottom: 1.5rem;
-  transition: all 0.2s;
+  font-weight: 600;
+  font-size: 0.88rem;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
 }
 
 .btn-back:hover {
-  background: var(--orange-light);
-}
-
-h2 {
-  color: var(--dark);
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-}
-
-.loading, .no-results {
-  text-align: center;
-  padding: 3rem 2rem;
-  color: var(--gray);
-  font-size: 1.1rem;
+  background: var(--orange-soft);
+  border-color: var(--orange);
+  color: var(--orange);
 }
 
 .map-container {
   height: 400px;
   width: 100%;
-  margin-bottom: 2rem;
-  border-radius: 8px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
   z-index: 1;
 }
 
@@ -49,44 +47,9 @@ h2 {
 
 .map-container .leaflet-container {
   z-index: 1;
+  background: var(--surface-2);
 }
 
-.devices-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.devices-table thead {
-  background: var(--light-gray);
-}
-
-.devices-table th {
-  padding: 1rem;
-  text-align: left;
-  font-weight: 600;
-  color: var(--gray);
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid #eee;
-}
-
-.devices-table td {
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid #f0f0f0;
-  color: #333;
-  font-size: 0.95rem;
-}
-
-.devices-table tbody tr:hover {
-  background: var(--orange-light);
-}
-
-.record-count {
-  text-align: center;
-  padding: 1rem;
-  color: var(--gray);
-  font-size: 0.9rem;
-  border-top: 1px solid #eee;
-  margin-top: 1rem;
+.pager {
+  padding: 4px 2px;
 }

@@ -1,0 +1,10 @@
+- Generating browser application bundles (phase: setup)...
+✔ Browser application bundle generation complete.
+
+Warning: C:\Users\MediaHelp\Downloads\stage orange\stage-orange\frontend\src\app\components\incident-devices\incident-devices.component.ts depends on 'leaflet'. CommonJS or AMD dependencies can cause optimization bailouts.
+For more info see: https://angular.io/guide/build#configuring-commonjs-dependencies
+
+
+✔ Browser application bundle generation complete.
+(node:27568) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
