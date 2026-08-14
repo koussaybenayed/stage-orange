@@ -24,7 +24,7 @@ public interface AcsMaxBox5GRepository extends JpaRepository<AcsMaxBox5G, String
     @Query(value = "SELECT * FROM acsmaxbox_5g WHERE CAST(REPLACE(IMSI, CHAR(13), '') AS CHAR(20)) = :imsi AND rsrp5g IS NOT NULL", nativeQuery = true)
     List<AcsMaxBox5G> findByImsiAndRsrp5GIsNotNull(@Param("imsi") String imsi);
 
-    @Query(value = "SELECT * FROM acsmaxbox_latest_incidents WHERE CAST(REPLACE(IMSI, CHAR(13), '') AS CHAR(20)) IN (:imsis)", nativeQuery = true)
+    @Query(value = "SELECT * FROM acsmaxbox_5g WHERE CAST(REPLACE(IMSI, CHAR(13), '') AS CHAR(20)) IN (:imsis)", nativeQuery = true)
     List<AcsMaxBox5G> findAllByImsiIn(@Param("imsis") List<String> imsis);
 
     @Query(value = "SELECT * FROM acsmaxbox_5g LIMIT :limit", nativeQuery = true)

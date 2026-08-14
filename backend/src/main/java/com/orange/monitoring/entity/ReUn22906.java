@@ -24,6 +24,9 @@ public class ReUn22906 {
     @Column(name = "Sujet")
     private String sujet;
 
+    @Column(name = "Description")
+    private String description;
+
     @Column(name = "MSISDN_concern\u00e9")
     private Long msisdn;
 

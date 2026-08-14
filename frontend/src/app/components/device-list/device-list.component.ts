@@ -18,6 +18,7 @@ export class DeviceListComponent implements OnInit {
   errorMessage = '';
 
   filterHzError = '';
+  filterSujet = '';
   filterOffre = '';
   filterCongestion = '';
 
@@ -25,6 +26,7 @@ export class DeviceListComponent implements OnInit {
   currentPage = 0;
   offerContrats: string[] = [];
   hzErrorTypes: string[] = [];
+  sujets: string[] = [];
 
   skeletonRows = Array(8).fill(0);
   skeletonCols = Array(15).fill(0);
@@ -45,6 +47,7 @@ export class DeviceListComponent implements OnInit {
           this.isLoading = false;
           try {
             this.incidents = data;
+            this.loadSujets();
             this.loadOfferContrats();
             this.loadHzErrorTypes();
             this.applyFilters();
@@ -59,6 +62,16 @@ export class DeviceListComponent implements OnInit {
           this.isLoading = false;
         }
       });
+  }
+
+  private loadSujets(): void {
+    const set = new Set<string>();
+    for (const inc of this.incidents) {
+      if (inc.sujet) {
+        set.add(inc.sujet);
+      }
+    }
+    this.sujets = Array.from(set).sort((a, b) => a.localeCompare(b));
   }
 
   private loadOfferContrats(): void {
@@ -94,6 +107,10 @@ export class DeviceListComponent implements OnInit {
     return out;
   }
 
+  onChangeSujet(): void {
+    this.applyFilters();
+  }
+
   onChangeHzError(): void {
     this.applyFilters();
   }
@@ -110,11 +127,12 @@ export class DeviceListComponent implements OnInit {
     const hz = this.filterHzError?.trim() || '';
     this.filteredIncidents = this.incidents.filter(inc => {
       const hzMatch = !hz || this.hzErrorStatuses(inc).some(s => s === hz);
+      const sujetMatch = !this.filterSujet || inc.sujet === this.filterSujet;
       const offreMatch = !this.filterOffre || inc.offreContrat === this.filterOffre;
       const congMatch = !this.filterCongestion ||
         (this.filterCongestion === 'true' && !!inc.congestionnee) ||
         (this.filterCongestion === 'false' && !inc.congestionnee);
-      return hzMatch && offreMatch && congMatch;
+      return hzMatch && sujetMatch && offreMatch && congMatch;
     });
     this.currentPage = 0;
     this.applyPaging();
@@ -148,11 +166,12 @@ export class DeviceListComponent implements OnInit {
 
     const XLSX = await import('xlsx');
 
-    const rows = this.filteredIncidents.map(inc => ({
+    const buildRow = (inc: IncidentWithDeviceInfo) => ({
       'Numéro de demande': inc.requestNumber,
       'Date de création': inc.created,
       'Sujet': inc.sujet,
       'MSISDN': inc.msisdn,
+      'IMSI concerné': inc.debugImsi ?? '-',
       'Offre/Contrat': inc.offreContrat,
       'Cell Name 4G': inc.cellName || '-',
       'Cell Name 5G': inc.cellName5G || '-',
@@ -165,18 +184,31 @@ export class DeviceListComponent implements OnInit {
       'HZerror': inc.hzError || '-',
       'Latitude': inc.latitude ?? '',
       'Longitude': inc.longitude ?? ''
-    }));
+    });
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [
-      { wch: 20 }, { wch: 20 }, { wch: 32 }, { wch: 14 },
-      { wch: 24 }, { wch: 30 }, { wch: 26 }, { wch: 14 },
-      { wch: 20 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
-      { wch: 10 }, { wch: 42 }, { wch: 12 }, { wch: 12 }
-    ];
+    const smc = this.filteredIncidents.filter(inc => !!inc.description);
+    const intervention = this.filteredIncidents.filter(inc => !inc.description);
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Incidents');
+    const appendSheet = (name: string, data: IncidentWithDeviceInfo[]) => {
+      const ws = XLSX.utils.json_to_sheet(data.map(buildRow));
+      ws['!cols'] = [
+        { wch: 20 }, { wch: 20 }, { wch: 32 }, { wch: 14 },
+        { wch: 18 }, { wch: 24 }, { wch: 30 }, { wch: 26 },
+        { wch: 14 }, { wch: 20 }, { wch: 10 }, { wch: 10 },
+        { wch: 10 }, { wch: 10 }, { wch: 42 }, { wch: 12 },
+        { wch: 12 }
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, name);
+    };
+
+    if (smc.length > 0) {
+      appendSheet('Pour SMC', smc);
+    }
+    if (intervention.length > 0) {
+      appendSheet('Pour Intervention', intervention);
+    }
+    if (wb.SheetNames.length === 0) return;
 
     const stamp = new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-');
     XLSX.writeFile(wb, `incidents_${stamp}.xlsx`);
@@ -184,6 +216,7 @@ export class DeviceListComponent implements OnInit {
 
   clearFilters(): void {
     this.filterHzError = '';
+    this.filterSujet = '';
     this.filterOffre = '';
     this.filterCongestion = '';
     this.applyFilters();

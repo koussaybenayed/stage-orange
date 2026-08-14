@@ -112,7 +112,12 @@ public class AcsMaxBox5GService {
     }
 
     public List<DeviceWithCellInfo> getDevicesByMsisdn(Long msisdn) {
-        String imsiStr = String.format("60501%010d", msisdn);
+        Long fullMsisdn = 21600000000L + msisdn;
+        Optional<Long> imsiOpt = fixboxRepository.findImsiByMsisdn(fullMsisdn);
+        if (imsiOpt.isEmpty()) {
+            return Collections.emptyList();
+        }
+        String imsiStr = imsiOpt.get().toString();
         List<AcsMaxBox5G> devices = repository.findByImsiAndRsrp5GIsNotNull(imsiStr);
         loadSiteCache();
         List<DeviceWithCellInfo> result = new ArrayList<>();

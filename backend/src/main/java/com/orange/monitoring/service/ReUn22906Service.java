@@ -17,8 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -50,15 +48,16 @@ public class ReUn22906Service {
 
     private static final long HZ_MSISDN_OFFSET = 21600000000L;
     private static final int HZ_WINDOW_DAYS = 3;
-    private static final DateTimeFormatter HZ_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     public List<ReUn22906> getFilteredIncidents() {
-        return repository.findFiltered(
-                "D\u00e9connexion",
-                "Echec de connexion",
-                "Lenteur",
-                "MAXBOX 5G"
-        );
+        return repository.findAllOrderByCreatedDesc();
+    }
+
+    public List<ReUn22906> getFilteredIncidentsBySujet(String sujet) {
+        if (sujet == null || sujet.trim().isEmpty()) {
+            return getFilteredIncidents();
+        }
+        return repository.findBySujetContainingIgnoreCaseOrderByCreatedDesc(sujet.trim());
     }
 
     public List<IncidentWithDeviceInfo> getIncidentsWithDeviceInfo() {
@@ -75,6 +74,7 @@ public class ReUn22906Service {
             info.setRequestNumber(inc.getRequestNumber());
             info.setCreated(inc.getCreated());
             info.setSujet(inc.getSujet());
+            info.setDescription(inc.getDescription());
             info.setMsisdn(inc.getMsisdn());
             info.setOffreContrat(inc.getOffreContrat());
 
@@ -185,17 +185,21 @@ public class ReUn22906Service {
             return Collections.emptyMap();
         }
 
-        // acsmaxbox_5g.IMSI is derived directly from the MSISDN: "60501" + 10-digit zero-padded MSISDN
+        // IMSI comes from fixbox_combined_table, matched on the full MSISDN (216 prefix + incident MSISDN)
         Map<Long, String> imsiByOriginalMsisdn = new HashMap<>();
         List<String> imsis = new ArrayList<>();
         for (Long m : originalMsisdns) {
-            String imsi = String.format("60501%010d", m);
-            imsiByOriginalMsisdn.put(m, imsi);
-            imsis.add(imsi);
+            Long fullMsisdn = HZ_MSISDN_OFFSET + m;
+            Optional<Long> imsiOpt = fixboxRepository.findImsiByMsisdn(fullMsisdn);
+            if (imsiOpt.isPresent()) {
+                String imsi = imsiOpt.get().toString();
+                imsiByOriginalMsisdn.put(m, imsi);
+                imsis.add(imsi);
+            }
         }
 
-        // Batch-fetch devices (1 indexed query)
-        List<AcsMaxBox5G> allDevices = acsRepository.findAllByImsiIn(imsis);
+        // Batch-fetch devices from acsmaxbox_5g (1 indexed query)
+        List<AcsMaxBox5G> allDevices = imsis.isEmpty() ? Collections.emptyList() : acsRepository.findAllByImsiIn(imsis);
 
         // Build: IMSI -> list of devices (group by cleaned IMSI, same key the SQL partitions on)
         Map<String, List<AcsMaxBox5G>> devicesByImsi = allDevices.stream()
@@ -253,23 +257,9 @@ public class ReUn22906Service {
     }
 
     public List<NameCount> getHzErrorDistribution() {
-        List<ReUn22906> incidents = getFilteredIncidents();
-        List<Long> msisdns = incidents.stream()
-                .map(ReUn22906::getMsisdn)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-        if (msisdns.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        Map<Long, String> createdByMsisdn = incidentCreatedByMsisdn(incidents);
         Map<String, Long> counts = new HashMap<>();
-        for (Map<String, Object> row : fetchHzRows(hzMsisdns(msisdns))) {
-            if (!withinHzWindow(row, createdByMsisdn)) {
-                continue;
-            }
-            counts.merge(row.get("status").toString(), 1L, Long::sum);
+        for (Map<String, Object> row : fetchHzCounts()) {
+            counts.merge(row.get("status").toString(), ((Number) row.get("cnt")).longValue(), Long::sum);
         }
 
         return counts.entrySet().stream()
@@ -327,24 +317,15 @@ public class ReUn22906Service {
 
     private Map<Long, String> buildHzErrors(List<ReUn22906> incidents) {
         Map<Long, String> result = new HashMap<>();
-        List<Long> msisdns = incidents.stream()
-                .map(ReUn22906::getMsisdn)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList());
-        if (msisdns.isEmpty()) {
+        if (incidents.isEmpty()) {
             return result;
         }
 
-        Map<Long, String> createdByMsisdn = incidentCreatedByMsisdn(incidents);
         Map<Long, Map<String, Long>> countsByMsisdn = new HashMap<>();
-        for (Map<String, Object> row : fetchHzRows(hzMsisdns(msisdns))) {
-            if (!withinHzWindow(row, createdByMsisdn)) {
-                continue;
-            }
-            long incMsisdn = ((Number) row.get("MSISDN")).longValue() - HZ_MSISDN_OFFSET;
+        for (Map<String, Object> row : fetchHzCounts()) {
+            long incMsisdn = ((Number) row.get("inc_msisdn")).longValue();
             countsByMsisdn.computeIfAbsent(incMsisdn, k -> new HashMap<>())
-                    .merge(row.get("status").toString(), 1L, Long::sum);
+                    .merge(row.get("status").toString(), ((Number) row.get("cnt")).longValue(), Long::sum);
         }
 
         for (Map.Entry<Long, Map<String, Long>> e : countsByMsisdn.entrySet()) {
@@ -359,51 +340,15 @@ public class ReUn22906Service {
         return result;
     }
 
-    private List<String> hzMsisdns(List<Long> msisdns) {
-        return msisdns.stream()
-                .map(m -> String.valueOf(HZ_MSISDN_OFFSET + m))
-                .collect(Collectors.toList());
-    }
-
-    private Map<Long, String> incidentCreatedByMsisdn(List<ReUn22906> incidents) {
-        Map<Long, String> map = new HashMap<>();
-        for (ReUn22906 inc : incidents) {
-            if (inc.getMsisdn() != null) {
-                map.putIfAbsent(inc.getMsisdn(), inc.getCreated());
-            }
-        }
-        return map;
-    }
-
-    private List<Map<String, Object>> fetchHzRows(List<String> hzMsisdns) {
-        StringBuilder sql = new StringBuilder(
-                "SELECT MSISDN, Time, status FROM hz WHERE MSISDN IN (");
-        for (int i = 0; i < hzMsisdns.size(); i++) {
-            if (i > 0) {
-                sql.append(",");
-            }
-            sql.append("?");
-        }
-        sql.append(") AND status IS NOT NULL AND status <> ''");
-        return jdbcTemplate.queryForList(sql.toString(), hzMsisdns.toArray());
-    }
-
-    private boolean withinHzWindow(Map<String, Object> row, Map<Long, String> createdByMsisdn) {
-        Long hzMsisdn = ((Number) row.get("MSISDN")).longValue();
-        long incMsisdn = hzMsisdn - HZ_MSISDN_OFFSET;
-        String created = createdByMsisdn.get(incMsisdn);
-        Object timeObj = row.get("Time");
-        if (created == null || timeObj == null) {
-            return false;
-        }
-        try {
-            LocalDateTime createdDt = LocalDateTime.parse(created, HZ_TIME_FORMAT);
-            LocalDateTime timeDt = LocalDateTime.parse(timeObj.toString(), HZ_TIME_FORMAT);
-            return !timeDt.isBefore(createdDt.minusDays(HZ_WINDOW_DAYS))
-                    && !timeDt.isAfter(createdDt.plusDays(HZ_WINDOW_DAYS));
-        } catch (Exception e) {
-            return false;
-        }
+    private List<Map<String, Object>> fetchHzCounts() {
+        String sql = "SELECT h.MSISDN - " + HZ_MSISDN_OFFSET + " AS inc_msisdn, h.status, COUNT(*) AS cnt "
+                + "FROM hz h "
+                + "JOIN re_u_n2_29_06 r ON h.MSISDN = " + HZ_MSISDN_OFFSET + " + CAST(r.MSISDN_concern\u00e9 AS UNSIGNED) "
+                + "WHERE h.status IS NOT NULL AND h.status <> '' "
+                + "AND h.Time >= DATE_SUB(r.Cr\u00e9\u00e9_le, INTERVAL " + HZ_WINDOW_DAYS + " DAY) "
+                + "AND h.Time <= DATE_ADD(r.Cr\u00e9\u00e9_le, INTERVAL " + HZ_WINDOW_DAYS + " DAY) "
+                + "GROUP BY h.MSISDN, h.status";
+        return jdbcTemplate.queryForList(sql);
     }
 
     private void resolveCellInfoCached(AcsMaxBox5G device, IncidentWithDeviceInfo info) {

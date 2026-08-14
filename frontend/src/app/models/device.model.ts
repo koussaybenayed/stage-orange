@@ -10,6 +10,7 @@ export interface IncidentWithDeviceInfo {
   requestNumber: string;
   created: string;
   sujet: string;
+  description?: string;
   msisdn: number;
   offreContrat: string;
   cellName: string;
@@ -19,6 +20,7 @@ export interface IncidentWithDeviceInfo {
   sinr5G: string;
   cellName5G: string;
   hzError?: string;
+  debugImsi?: number;
   latitude?: number;
   longitude?: number;
   congestionnee?: boolean;

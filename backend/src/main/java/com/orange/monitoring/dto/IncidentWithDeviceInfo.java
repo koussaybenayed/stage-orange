@@ -11,6 +11,7 @@ public class IncidentWithDeviceInfo {
     private String requestNumber;
     private String created;
     private String sujet;
+    private String description;
     private Long msisdn;
     private String offreContrat;
     private String cellName;

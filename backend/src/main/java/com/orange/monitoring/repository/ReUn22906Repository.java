@@ -11,8 +11,13 @@ import java.util.List;
 @Repository
 public interface ReUn22906Repository extends JpaRepository<ReUn22906, Long> {
 
-    String FILTERED = "(r.Sujet LIKE '%D\u00e9connexion%' OR r.Sujet LIKE '%Echec de connexion%' OR r.Sujet LIKE '%Lenteur%') " +
-            "AND r.Offre__Contrat LIKE '%MAXBOX 5G%'";
+    String FILTERED = "(r.Sujet LIKE '%D\u00e9connexion%' OR r.Sujet LIKE '%Echec de connexion%' OR r.Sujet LIKE '%Lenteur%')";
+
+    @Query("SELECT r FROM ReUn22906 r ORDER BY r.created DESC")
+    List<ReUn22906> findAllOrderByCreatedDesc();
+
+    @Query("SELECT r FROM ReUn22906 r WHERE LOWER(r.sujet) LIKE LOWER(CONCAT('%', :sujet, '%')) ORDER BY r.created DESC")
+    List<ReUn22906> findBySujetContainingIgnoreCaseOrderByCreatedDesc(@Param("sujet") String sujet);
 
     @Query("SELECT r FROM ReUn22906 r WHERE " +
             "(LOWER(r.sujet) LIKE LOWER(CONCAT('%', :keyword1, '%')) OR " +

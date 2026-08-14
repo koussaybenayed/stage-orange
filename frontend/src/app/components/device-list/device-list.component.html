@@ -1,6 +1,6 @@
 <div class="page">
   <div class="page-header">
-    <h1>Incidents MAXBOX 5G</h1>
+    <h1>Incidents</h1>
     <p class="text-muted">Suivi des incidents avec informations appareil</p>
   </div>
 
@@ -46,6 +46,13 @@
   <ng-container *ngIf="!isLoading && !errorMessage && incidents.length > 0">
 
     <div class="card filters-bar">
+      <div class="filter-field">
+        <label for="sujetFilter">Sujet</label>
+        <select id="sujetFilter" [(ngModel)]="filterSujet" (ngModelChange)="onChangeSujet()">
+          <option value="">Tous</option>
+          <option *ngFor="let s of sujets" [value]="s">{{ s }}</option>
+        </select>
+      </div>
       <div class="filter-field">
         <label for="hzFilter">HZerror</label>
         <select id="hzFilter" [(ngModel)]="filterHzError" (ngModelChange)="onChangeHzError()">

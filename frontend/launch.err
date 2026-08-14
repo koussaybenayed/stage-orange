@@ -1,0 +1,40 @@
+- Generating browser application bundles (phase: setup)...
+✔ Browser application bundle generation complete.
+
+Warning: C:\Users\MediaHelp\Downloads\stage orange\stage-orange\frontend\src\app\components\incident-devices\incident-devices.component.ts depends on 'leaflet'. CommonJS or AMD dependencies can cause optimization bailouts.
+For more info see: https://angular.io/guide/build#configuring-commonjs-dependencies
+
+
+✔ Browser application bundle generation complete.
+(node:5784) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/device-list/device-list.component.ts:50:18 - error TS2339: Property 'loadSujets' does not exist on type 'DeviceListComponent'.
+
+50             this.loadSujets();
+                    ~~~~~~~~~~
+
+
+
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+
+Warning: C:\Users\MediaHelp\Downloads\stage orange\stage-orange\frontend\src\app\components\problem-map\problem-map.component.ts depends on 'leaflet'. CommonJS or AMD dependencies can cause optimization bailouts.
+For more info see: https://angular.io/guide/build#configuring-commonjs-dependencies
+
+
+✔ Browser application bundle generation complete.
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/with-device-info to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
