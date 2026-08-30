@@ -47,3 +47,7 @@ For more info see: https://angular.io/guide/build#configuring-commonjs-dependenc
 <e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/with-device-info to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
 <e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/with-device-info to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
 <e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/with-device-info to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.

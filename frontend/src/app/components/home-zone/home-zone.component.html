@@ -115,7 +115,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let e of msisdnStats.recentErrors">
+              <tr *ngFor="let e of pagedErrors">
                 <td class="mono">{{ e.time }}</td>
                 <td>{{ e.status }}</td>
                 <td>{{ e.siteName || '-' }}</td>
@@ -140,6 +140,12 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <div class="pagination" *ngIf="msisdnStats.recentErrors.length > errorsPageSize">
+          <button class="page-btn" [disabled]="errorsPage === 0" (click)="setErrorPage(errorsPage - 1)">‹</button>
+          <button class="page-btn page-current" [disabled]="true">{{ errorsPage + 1 }} / {{ totalErrorPages }}</button>
+          <button class="page-btn" [disabled]="errorsPage >= totalErrorPages - 1" (click)="setErrorPage(errorsPage + 1)">›</button>
+          <span class="page-info">{{ errorsWindowStart }}–{{ errorsWindowEnd }} sur {{ msisdnStats.recentErrors.length }}</span>
         </div>
       </div>
 

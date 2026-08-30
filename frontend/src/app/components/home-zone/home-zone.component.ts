@@ -5,7 +5,7 @@ import { timeout } from 'rxjs/operators';
 import { ChartOptions } from 'chart.js';
 import { DeviceService } from '../../services/device.service';
 import { ThemeService } from '../../services/theme.service';
-import { HzDailySeries, HzMsisdnStats, NameCount } from '../../models/device.model';
+import { HzDailySeries, HzError, HzMsisdnStats, NameCount } from '../../models/device.model';
 
 @Component({
   selector: 'app-home-zone',
@@ -26,6 +26,9 @@ export class HomeZoneComponent implements OnInit, OnDestroy {
   msisdnCharts: any[] = [];
   msisdnLoading = false;
   msisdnError = '';
+
+  errorsPage = 0;
+  errorsPageSize = 10;
 
   loading = true;
   errorMessage = '';
@@ -75,6 +78,7 @@ onOfferChange(): void {
     this.msisdnSeries = [];
     this.msisdnCharts = [];
     this.msisdnLoading = true;
+    this.errorsPage = 0;
 
     const from = this.dateFrom || undefined;
     const to = this.dateTo || undefined;
@@ -105,6 +109,29 @@ onOfferChange(): void {
           console.error('HZ msisdn daily evolution error', err);
         }
       });
+  }
+
+  get totalErrorPages(): number {
+    const errors = this.msisdnStats?.recentErrors ?? [];
+    return Math.max(1, Math.ceil(errors.length / this.errorsPageSize));
+  }
+
+  get pagedErrors(): HzError[] {
+    const errors = this.msisdnStats?.recentErrors ?? [];
+    const start = this.errorsPage * this.errorsPageSize;
+    return errors.slice(start, start + this.errorsPageSize);
+  }
+
+  get errorsWindowStart(): number {
+    return this.errorsPage * this.errorsPageSize + (this.pagedErrors.length > 0 ? 1 : 0);
+  }
+
+  get errorsWindowEnd(): number {
+    return this.errorsPage * this.errorsPageSize + this.pagedErrors.length;
+  }
+
+  setErrorPage(page: number): void {
+    this.errorsPage = Math.min(Math.max(page, 0), this.totalErrorPages - 1);
   }
 
   private buildMsisdnCharts(): any[] {

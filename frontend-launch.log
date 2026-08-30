@@ -26,3 +26,43 @@ runtime.js          | runtime | 12.68 kB |
 Build at: 2026-08-30T13:16:40.790Z - Hash: 49511f5efa90e8ca - Time: 3843ms
 
 √ Compiled successfully.
+
+Initial chunk files | Names   |  Raw size
+main.js             | main    | 374.63 kB | 
+runtime.js          | runtime |  12.68 kB | 
+
+4 unchanged chunks
+
+Build at: 2026-08-30T13:26:35.516Z - Hash: b8162073ca354a42 - Time: 16297ms
+
+√ Compiled successfully.
+
+Initial chunk files | Names   |  Raw size
+main.js             | main    | 375.33 kB | 
+runtime.js          | runtime |  12.68 kB | 
+
+4 unchanged chunks
+
+Build at: 2026-08-30T13:26:36.678Z - Hash: 3ea9b861f181db83 - Time: 1117ms
+
+√ Compiled successfully.
+
+Initial chunk files | Names   |  Raw size
+main.js             | main    | 378.82 kB | 
+runtime.js          | runtime |  12.68 kB | 
+
+4 unchanged chunks
+
+Build at: 2026-08-30T13:26:44.389Z - Hash: de13cecade6d796f - Time: 1092ms
+
+√ Compiled successfully.
+
+Initial chunk files | Names   |  Raw size
+main.js             | main    | 381.32 kB | 
+runtime.js          | runtime |  12.68 kB | 
+
+4 unchanged chunks
+
+Build at: 2026-08-30T13:27:00.710Z - Hash: e4fb59ed9bc58a11 - Time: 7101ms
+
+√ Compiled successfully.

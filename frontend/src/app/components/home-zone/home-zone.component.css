@@ -281,6 +281,53 @@ canvas {
   border: 1px solid var(--border);
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: #FF7900;
+  color: #FF7900;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-btn.page-current {
+  background: #FF7900;
+  border-color: #FF7900;
+  color: #fff;
+  font-weight: 600;
+  cursor: default;
+}
+
+.page-info {
+  color: var(--text-3);
+  font-size: 0.8rem;
+}
+
 @media (max-width: 768px) {
   .charts-grid { grid-template-columns: 1fr; }
 }
