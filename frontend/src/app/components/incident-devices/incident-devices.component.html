@@ -38,6 +38,14 @@
   <!-- Map (always present for Leaflet init) -->
   <div id="device-map" class="map-container" [class.map-hidden]="!showMap"></div>
 
+  <div class="map-legend" *ngIf="showMap">
+    <div class="legend-item"><span class="legend-dot dot-incident"></span> Position client (rayon 5 km)</div>
+    <div class="legend-item"><span class="legend-dot dot-nearby"></span> Site avec réclamation</div>
+    <div class="legend-item"><span class="legend-dot dot-site-plain"></span> Autre site</div>
+    <div class="legend-item"><span class="legend-dot dot-site"></span> Position du site</div>
+    <div class="legend-item"><span class="legend-dot dot-device"></span> Appareil</div>
+  </div>
+
   <!-- Devices table -->
   <div class="table-wrap fade-in" *ngIf="!isLoading && devices.length > 0">
     <table class="data-table">

@@ -13,15 +13,12 @@ import lombok.NoArgsConstructor;
 public class LteCellInfo {
 
     @Id
-    @Column(name = "Unnamed__62")
-    private Long unnamed62;
+    @Column(name = "Cell_Name")
+    private String cellName;
 
     @Column(name = "enodeBID")
     private Long enodeBId;
 
     @Column(name = "Local_cell_identity")
     private Long localCellIdentity;
-
-    @Column(name = "Cell_Name")
-    private String cellName;
 }

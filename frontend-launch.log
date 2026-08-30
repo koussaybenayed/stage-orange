@@ -1,18 +1,17 @@
 
-> device-monitoring-frontend@1.0.0 start
-> ng serve --proxy-config proxy.conf.json
+Initial chunk files           | Names         |  Raw size
+vendor.js                     | vendor        |   4.10 MB | 
+main.js                       | main          | 374.58 kB | 
+polyfills.js                  | polyfills     | 262.60 kB | 
+styles.css, styles.js         | styles        | 172.85 kB | 
+runtime.js                    | runtime       |  12.68 kB | 
 
+                              | Initial total |   4.90 MB
 
-Initial chunk files   | Names         |  Raw size
-vendor.js             | vendor        |   4.10 MB | 
-polyfills.js          | polyfills     | 262.60 kB | 
-main.js               | main          | 242.35 kB | 
-styles.css, styles.js | styles        | 172.85 kB | 
-runtime.js            | runtime       |   6.55 kB | 
+Lazy chunk files              | Names         |  Raw size
+node_modules_xlsx_xlsx_mjs.js | xlsx          | 973.44 kB | 
 
-                      | Initial total |   4.77 MB
-
-Build at: 2026-08-11T10:07:56.373Z - Hash: b4eda783221cf831 - Time: 13300ms
+Build at: 2026-08-30T13:16:36.765Z - Hash: bba127779257fc2d - Time: 12679ms
 
 ** Angular Live Development Server is listening on localhost:4200, open your browser on http://localhost:4200/ **
 
@@ -20,10 +19,10 @@ Build at: 2026-08-11T10:07:56.373Z - Hash: b4eda783221cf831 - Time: 13300ms
 √ Compiled successfully.
 
 Initial chunk files | Names   | Raw size
-runtime.js          | runtime |  6.55 kB | 
+runtime.js          | runtime | 12.68 kB | 
 
-4 unchanged chunks
+5 unchanged chunks
 
-Build at: 2026-08-11T10:07:59.613Z - Hash: b30f156edf5b8d02 - Time: 3102ms
+Build at: 2026-08-30T13:16:40.790Z - Hash: 49511f5efa90e8ca - Time: 3843ms
 
 √ Compiled successfully.

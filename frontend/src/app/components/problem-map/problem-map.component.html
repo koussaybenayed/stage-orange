@@ -44,11 +44,13 @@
       <select id="incidentTypeFilter" [(ngModel)]="filterType" (ngModelChange)="onFilterTypeChange()">
         <option value="all">Tous les incidents</option>
         <option value="hzerror">HZerror</option>
+        <option value="incident">En incident</option>
       </select>
     </div>
     <span class="controls-hint text-muted">
       {{ getTotalIncidents() }} incident(s) affiché(s)
       <ng-container *ngIf="filterType === 'hzerror'">(erreurs de home zone)</ng-container>
+      <ng-container *ngIf="filterType === 'incident'">(sites avec incident réel)</ng-container>
     </span>
   </div>
 
@@ -61,6 +63,10 @@
     <div class="stat-item">
       <span class="stat-label">Sites concernés</span>
       <span class="stat-value">{{ getTotalProblemSites() }}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Sites en incident</span>
+      <span class="stat-value incident">{{ getIncidentSitesCount() }}</span>
     </div>
     <div class="stat-item">
       <span class="stat-label">HZerror</span>

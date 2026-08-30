@@ -10,6 +10,8 @@ import { AppComponent } from './app.component';
 import { DeviceListComponent } from './components/device-list/device-list.component';
 import { DeviceDetailComponent } from './components/device-detail/device-detail.component';
 import { DashboardComponent } from './components/dashboard/dashboard.component';
+import { HomeZoneComponent } from './components/home-zone/home-zone.component';
+import { HzErrorsComponent } from './components/hz-errors/hz-errors.component';
 import { IncidentDevicesComponent } from './components/incident-devices/incident-devices.component';
 import { ProblemMapComponent } from './components/problem-map/problem-map.component';
 
@@ -19,6 +21,8 @@ import { ProblemMapComponent } from './components/problem-map/problem-map.compon
     DeviceListComponent,
     DeviceDetailComponent,
     DashboardComponent,
+    HomeZoneComponent,
+    HzErrorsComponent,
     IncidentDevicesComponent,
     ProblemMapComponent
   ],

@@ -21,6 +21,7 @@ export class DeviceListComponent implements OnInit {
   filterSujet = '';
   filterOffre = '';
   filterCongestion = '';
+  filterIncident = '';
 
   pageSize = 20;
   currentPage = 0;
@@ -29,7 +30,7 @@ export class DeviceListComponent implements OnInit {
   sujets: string[] = [];
 
   skeletonRows = Array(8).fill(0);
-  skeletonCols = Array(15).fill(0);
+  skeletonCols = Array(18).fill(0);
 
   constructor(private deviceService: DeviceService, private router: Router) { }
 
@@ -123,6 +124,10 @@ export class DeviceListComponent implements OnInit {
     this.applyFilters();
   }
 
+  onChangeIncident(): void {
+    this.applyFilters();
+  }
+
   applyFilters(): void {
     const hz = this.filterHzError?.trim() || '';
     this.filteredIncidents = this.incidents.filter(inc => {
@@ -132,7 +137,10 @@ export class DeviceListComponent implements OnInit {
       const congMatch = !this.filterCongestion ||
         (this.filterCongestion === 'true' && !!inc.congestionnee) ||
         (this.filterCongestion === 'false' && !inc.congestionnee);
-      return hzMatch && sujetMatch && offreMatch && congMatch;
+      const incidentMatch = !this.filterIncident ||
+        (this.filterIncident === 'true' && !!inc.hasIncident) ||
+        (this.filterIncident === 'false' && !inc.hasIncident);
+      return hzMatch && sujetMatch && offreMatch && congMatch && incidentMatch;
     });
     this.currentPage = 0;
     this.applyPaging();
@@ -171,11 +179,15 @@ export class DeviceListComponent implements OnInit {
       'Date de création': inc.created,
       'Sujet': inc.sujet,
       'MSISDN': inc.msisdn,
+      'Contact': inc.contact || '-',
       'IMSI concerné': inc.debugImsi ?? '-',
       'Offre/Contrat': inc.offreContrat,
       'Cell Name 4G': inc.cellName || '-',
       'Cell Name 5G': inc.cellName5G || '-',
       'Congestionnée': inc.congestionnee ? 'Oui' : 'Non',
+      'Incident site': inc.hasIncident ? 'Oui' : 'Non',
+      'Période incident': inc.incidentPeriod || '-',
+      'Type incident': inc.incidentTech || '-',
       'Action': inc.action || '-',
       'RSRP 4G': inc.rsrp4G || '-',
       'SINR 4G': inc.sinr4G || '-',
@@ -194,10 +206,10 @@ export class DeviceListComponent implements OnInit {
       const ws = XLSX.utils.json_to_sheet(data.map(buildRow));
       ws['!cols'] = [
         { wch: 20 }, { wch: 20 }, { wch: 32 }, { wch: 14 },
-        { wch: 18 }, { wch: 24 }, { wch: 30 }, { wch: 26 },
-        { wch: 14 }, { wch: 20 }, { wch: 10 }, { wch: 10 },
-        { wch: 10 }, { wch: 10 }, { wch: 42 }, { wch: 12 },
-        { wch: 12 }
+        { wch: 14 }, { wch: 24 }, { wch: 30 }, { wch: 26 },
+        { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 20 },
+        { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+        { wch: 42 }, { wch: 12 }, { wch: 12 }, { wch: 12 }
       ];
       XLSX.utils.book_append_sheet(wb, ws, name);
     };
@@ -219,6 +231,7 @@ export class DeviceListComponent implements OnInit {
     this.filterSujet = '';
     this.filterOffre = '';
     this.filterCongestion = '';
+    this.filterIncident = '';
     this.applyFilters();
   }
 

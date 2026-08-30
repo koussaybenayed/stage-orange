@@ -124,6 +124,54 @@
   color: var(--danger, #ef4444);
 }
 
+/* ---------- Incident badge ---------- */
+.badge-inc {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.badge-inc-oui {
+  background: var(--danger-soft, rgba(239, 68, 68, 0.12));
+  color: var(--danger, #ef4444);
+}
+
+.badge-inc-non {
+  background: var(--success-soft, rgba(34, 197, 94, 0.15));
+  color: var(--success, #22c55e);
+}
+
+/* ---------- Incident tech + period ---------- */
+.inc-tech {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.tech-4g {
+  background: rgba(59, 130, 246, 0.14);
+  color: #3b82f6;
+}
+
+.tech-5g {
+  background: rgba(249, 115, 22, 0.14);
+  color: #f97316;
+}
+
+.inc-period {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
 /* ---------- HZ error badge ---------- */
 .hz-error {
   display: inline-block;

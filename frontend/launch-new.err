@@ -1,0 +1,443 @@
+- Generating browser application bundles (phase: setup)...
+✔ Browser application bundle generation complete.
+
+Warning: C:\Users\MediaHelp\Downloads\stage orange\stage-orange\frontend\src\app\components\incident-devices\incident-devices.component.ts depends on 'leaflet'. CommonJS or AMD dependencies can cause optimization bailouts.
+For more info see: https://angular.io/guide/build#configuring-commonjs-dependencies
+
+
+✔ Browser application bundle generation complete.
+(node:14908) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ Browser application bundle generation complete.
+
+Warning: C:\Users\MediaHelp\Downloads\stage orange\stage-orange\frontend\src\app\components\problem-map\problem-map.component.ts depends on 'leaflet'. CommonJS or AMD dependencies can cause optimization bailouts.
+For more info see: https://angular.io/guide/build#configuring-commonjs-dependencies
+
+
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/offers to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/daily-evolution?apn= to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/offers to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/daily-evolution?apn= to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/offers to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/daily-evolution?apn= to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/home-zone/home-zone.component.html:62:39 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+62       <div class="stats-block" *ngIf="msisdnIncidents.length > 0">
+                                         ~~~~~~~~~~~~~~~
+
+  src/app/components/home-zone/home-zone.component.ts:12:16
+    12   templateUrl: './home-zone.component.html',
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Error occurs in the template of component HomeZoneComponent.
+
+
+Error: src/app/components/home-zone/home-zone.component.html:84:38 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+84               <tr *ngFor="let inc of msisdnIncidents">
+                                        ~~~~~~~~~~~~~~~
+
+  src/app/components/home-zone/home-zone.component.ts:12:16
+    12   templateUrl: './home-zone.component.html',
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Error occurs in the template of component HomeZoneComponent.
+
+
+Error: src/app/components/home-zone/home-zone.component.ts:77:10 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+77     this.msisdnIncidents = [];
+            ~~~~~~~~~~~~~~~
+
+
+Error: src/app/components/home-zone/home-zone.component.ts:84:16 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+84           this.msisdnIncidents = data;
+                  ~~~~~~~~~~~~~~~
+
+
+
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/home-zone/home-zone.component.html:62:39 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+62       <div class="stats-block" *ngIf="msisdnIncidents.length > 0">
+                                         ~~~~~~~~~~~~~~~
+
+  src/app/components/home-zone/home-zone.component.ts:12:16
+    12   templateUrl: './home-zone.component.html',
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Error occurs in the template of component HomeZoneComponent.
+
+
+Error: src/app/components/home-zone/home-zone.component.html:84:38 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+84               <tr *ngFor="let inc of msisdnIncidents">
+                                        ~~~~~~~~~~~~~~~
+
+  src/app/components/home-zone/home-zone.component.ts:12:16
+    12   templateUrl: './home-zone.component.html',
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Error occurs in the template of component HomeZoneComponent.
+
+
+
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/home-zone/home-zone.component.html:62:39 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+62       <div class="stats-block" *ngIf="msisdnIncidents.length > 0">
+                                         ~~~~~~~~~~~~~~~
+
+  src/app/components/home-zone/home-zone.component.ts:12:16
+    12   templateUrl: './home-zone.component.html',
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Error occurs in the template of component HomeZoneComponent.
+
+
+Error: src/app/components/home-zone/home-zone.component.html:84:38 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+84               <tr *ngFor="let inc of msisdnIncidents">
+                                        ~~~~~~~~~~~~~~~
+
+  src/app/components/home-zone/home-zone.component.ts:12:16
+    12   templateUrl: './home-zone.component.html',
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Error occurs in the template of component HomeZoneComponent.
+
+
+
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/home-zone/home-zone.component.html:80:39 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+80       <div class="stats-block" *ngIf="msisdnIncidents.length > 0">
+                                         ~~~~~~~~~~~~~~~
+
+  src/app/components/home-zone/home-zone.component.ts:12:16
+    12   templateUrl: './home-zone.component.html',
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Error occurs in the template of component HomeZoneComponent.
+
+
+Error: src/app/components/home-zone/home-zone.component.html:102:38 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+102               <tr *ngFor="let inc of msisdnIncidents">
+                                         ~~~~~~~~~~~~~~~
+
+  src/app/components/home-zone/home-zone.component.ts:12:16
+    12   templateUrl: './home-zone.component.html',
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Error occurs in the template of component HomeZoneComponent.
+
+
+
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/home-zone/home-zone.component.html:80:39 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+80       <div class="stats-block" *ngIf="msisdnIncidents.length > 0">
+                                         ~~~~~~~~~~~~~~~
+
+  src/app/components/home-zone/home-zone.component.ts:12:16
+    12   templateUrl: './home-zone.component.html',
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Error occurs in the template of component HomeZoneComponent.
+
+
+Error: src/app/components/home-zone/home-zone.component.html:102:38 - error TS2339: Property 'msisdnIncidents' does not exist on type 'HomeZoneComponent'.
+
+102               <tr *ngFor="let inc of msisdnIncidents">
+                                         ~~~~~~~~~~~~~~~
+
+  src/app/components/home-zone/home-zone.component.ts:12:16
+    12   templateUrl: './home-zone.component.html',
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Error occurs in the template of component HomeZoneComponent.
+
+
+
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/offers to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/daily-evolution?apn= to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/daily-evolution?apn= to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/offers to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/daily-evolution?apn= to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/offers to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/daily-evolution?apn= to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/offers to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/offers to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/hz/daily-evolution?apn= to http://localhost:8081/ [ECONNRESET] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] ECONNRESET: Error: read ECONNRESET
+<e>     at TCP.onStreamRead (node:internal/stream_base_commons:216:20) {
+<e>   errno: -4077,
+<e>   code: 'ECONNRESET',
+<e>   syscall: 'read'
+<e> }
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/incident-devices/incident-devices.component.ts:113:20 - error TS2339: Property 'addIncidentMarkers' does not exist on type 'IncidentDevicesComponent'.
+
+113               this.addIncidentMarkers();
+                       ~~~~~~~~~~~~~~~~~~
+
+
+
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/incident-devices/incident-devices.component.ts:103:24 - error TS2339: Property 'addNearbyMarkers' does not exist on type 'IncidentDevicesComponent'.
+
+103                   this.addNearbyMarkers();
+                           ~~~~~~~~~~~~~~~~
+
+
+
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/incident-devices/incident-devices.component.ts:104:24 - error TS2339: Property 'addNearbyMarkers' does not exist on type 'IncidentDevicesComponent'.
+
+104                   this.addNearbyMarkers();
+                           ~~~~~~~~~~~~~~~~
+
+
+
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/incident-devices/incident-devices.component.ts:102:16 - error TS2339: Property 'refreshShowMap' does not exist on type 'IncidentDevicesComponent'.
+
+102           this.refreshShowMap();
+                   ~~~~~~~~~~~~~~
+
+
+
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/incident-devices/incident-devices.component.ts:102:16 - error TS2339: Property 'refreshShowMap' does not exist on type 'IncidentDevicesComponent'.
+
+102           this.refreshShowMap();
+                   ~~~~~~~~~~~~~~
+
+
+Error: src/app/components/incident-devices/incident-devices.component.ts:131:18 - error TS2339: Property 'refreshShowMap' does not exist on type 'IncidentDevicesComponent'.
+
+131             this.refreshShowMap();
+                     ~~~~~~~~~~~~~~
+
+
+
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/incident-devices/incident-devices.component.ts:81:10 - error TS2551: Property 'addSiteMarkers' does not exist on type 'IncidentDevicesComponent'. Did you mean 'addMarkers'?
+
+81     this.addSiteMarkers();
+            ~~~~~~~~~~~~~~
+
+  src/app/components/incident-devices/incident-devices.component.ts:160:11
+    160   private addMarkers(): void {
+                  ~~~~~~~~~~
+    'addMarkers' is declared here.
+
+
+
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/incident-devices/incident-devices.component.ts:81:10 - error TS2551: Property 'addSiteMarkers' does not exist on type 'IncidentDevicesComponent'. Did you mean 'addMarkers'?
+
+81     this.addSiteMarkers();
+            ~~~~~~~~~~~~~~
+
+  src/app/components/incident-devices/incident-devices.component.ts:161:11
+    161   private addMarkers(): void {
+                  ~~~~~~~~~~
+    'addMarkers' is declared here.
+
+
+
+✔ Browser application bundle generation complete.
+
+Error: src/app/components/incident-devices/incident-devices.component.ts:81:10 - error TS2551: Property 'addSiteMarkers' does not exist on type 'IncidentDevicesComponent'. Did you mean 'addMarkers'?
+
+81     this.addSiteMarkers();
+            ~~~~~~~~~~~~~~
+
+  src/app/components/incident-devices/incident-devices.component.ts:162:11
+    162   private addMarkers(): void {
+                  ~~~~~~~~~~
+    'addMarkers' is declared here.
+
+
+Error: src/app/components/incident-devices/incident-devices.component.ts:108:16 - error TS2551: Property 'addSiteMarkers' does not exist on type 'IncidentDevicesComponent'. Did you mean 'addMarkers'?
+
+108           this.addSiteMarkers();
+                   ~~~~~~~~~~~~~~
+
+  src/app/components/incident-devices/incident-devices.component.ts:162:11
+    162   private addMarkers(): void {
+                  ~~~~~~~~~~
+    'addMarkers' is declared here.
+
+
+
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/with-device-info?msisdn=31159221 to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/devices/by-msisdn/31159221 to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+✔ Browser application bundle generation complete.
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/incidents/with-device-info?msisdn=31159221 to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+<e> [webpack-dev-server] [HPM] Error occurred while proxying request localhost:4200/api/devices/by-msisdn/31159221 to http://localhost:8081/ [ECONNREFUSED] (https://nodejs.org/api/errors.html#errors_common_system_errors)
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.
+✔ Browser application bundle generation complete.

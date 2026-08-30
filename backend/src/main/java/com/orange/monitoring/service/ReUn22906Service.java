@@ -1,8 +1,13 @@
 package com.orange.monitoring.service;
 
+import com.orange.monitoring.dto.HzDailyPoint;
+import com.orange.monitoring.dto.HzDailySeries;
+import com.orange.monitoring.dto.HzError;
+import com.orange.monitoring.dto.HzMsisdnStats;
 import com.orange.monitoring.dto.IncidentOverview;
 import com.orange.monitoring.dto.IncidentWithDeviceInfo;
 import com.orange.monitoring.dto.NameCount;
+import com.orange.monitoring.dto.NearbySite;
 import com.orange.monitoring.dto.TopZonesResponse;
 import com.orange.monitoring.entity.AcsMaxBox5G;
 import com.orange.monitoring.entity.NrCell;
@@ -17,6 +22,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -41,13 +51,53 @@ public class ReUn22906Service {
     @Autowired
     private SiteOtnRepository siteOtnRepository;
 
+    @PostConstruct
+    public void warmHzLatestDate() {
+        Thread warm = new Thread(() -> {
+            try {
+                resolveHzLatestDate();
+            } catch (Exception ignored) {
+            }
+        }, "hz-latest-warmup");
+        warm.setDaemon(true);
+        warm.start();
+    }
+
     private Map<String, Double[]> siteCache; // sitePrefix -> [lat, lng]
     private Map<String, String> lteCellCache; // "eNodeBId_localCellId" -> cellName
     private Map<String, String> nrCellCache; // cle -> cellName
     private Map<String, String> etatCBandCache; // cell name -> action (etat_c_band)
+    private Map<String, List<IncidentPeriod>> incidentSiteCache; // siteCode -> incidents (Date_debut, Date_fin)
 
     private static final long HZ_MSISDN_OFFSET = 21600000000L;
     private static final int HZ_WINDOW_DAYS = 3;
+    private static final int HZ_ERROR_THRESHOLD = 3;
+    private static final String HZ_STRICT_STATUS = "EGCI not in Home Zone";
+    private static final int HZ_DAILY_DAYS = 5;
+    private static final long HZ_LATEST_CACHE_TTL_MS = 60 * 60 * 1000L;
+
+    private volatile String hzLatestDateCache;
+    private volatile long hzLatestDateCacheTs;
+
+    private static final List<String> HZ_ERROR_TYPES = Arrays.asList(
+            "EGCI not in Home Zone",
+            "ECGI Not authorized",
+            "TAC not allowed",
+            "Temporarily Blocked",
+            "IMEI_TAC not allowed",
+            "Session rejected"
+    );
+
+    private static class IncidentPeriod {
+        final LocalDateTime debut;
+        final LocalDateTime fin;
+        final String services;
+        IncidentPeriod(LocalDateTime debut, LocalDateTime fin, String services) {
+            this.debut = debut;
+            this.fin = fin;
+            this.services = services;
+        }
+    }
 
     public List<ReUn22906> getFilteredIncidents() {
         return repository.findAllOrderByCreatedDesc();
@@ -61,7 +111,16 @@ public class ReUn22906Service {
     }
 
     public List<IncidentWithDeviceInfo> getIncidentsWithDeviceInfo() {
+        return getIncidentsWithDeviceInfo(null);
+    }
+
+    public List<IncidentWithDeviceInfo> getIncidentsWithDeviceInfo(Long msisdn) {
         List<ReUn22906> incidents = getFilteredIncidents();
+        if (msisdn != null) {
+            incidents = incidents.stream()
+                    .filter(inc -> msisdn.equals(inc.getMsisdn()))
+                    .collect(Collectors.toList());
+        }
 
         Map<Long, List<AcsMaxBox5G>> devicesByOriginalMsisdn = buildDevicesByMsisdn(incidents);
         Map<Long, String> hzErrorByMsisdn = buildHzErrors(incidents);
@@ -75,8 +134,11 @@ public class ReUn22906Service {
             info.setCreated(inc.getCreated());
             info.setSujet(inc.getSujet());
             info.setDescription(inc.getDescription());
+            info.setContact(inc.getContact());
             info.setMsisdn(inc.getMsisdn());
             info.setOffreContrat(inc.getOffreContrat());
+            info.setX(inc.getX());
+            info.setY(inc.getY());
 
             if (inc.getMsisdn() != null) {
                 info.setHzError(hzErrorByMsisdn.get(inc.getMsisdn()));
@@ -96,6 +158,8 @@ public class ReUn22906Service {
                     }
                 }
             }
+
+            resolveIncidentForSite(info, inc.getCreated());
 
             result.add(info);
         }
@@ -159,6 +223,44 @@ public class ReUn22906Service {
                 }
             } catch (Exception ignored) {}
             etatCBandCache = map;
+        }
+        if (incidentSiteCache == null) {
+            Map<String, List<IncidentPeriod>> map = new HashMap<>();
+            try {
+                List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "SELECT s.Site_Code, i.Date_debut, i.Date_fin, i.services " +
+                    "FROM Incident i JOIN Incident_Site s ON s.Incident_Id = i.Id_incident " +
+                    "WHERE s.Site_Code IS NOT NULL"
+                );
+                for (Map<String, Object> row : rows) {
+                    String siteCode = row.get("Site_Code").toString();
+                    LocalDateTime debut = toLocalDateTime(row.get("Date_debut"));
+                    LocalDateTime fin = toLocalDateTime(row.get("Date_fin"));
+                    String services = row.get("services") != null ? row.get("services").toString() : null;
+                    if (debut == null) continue;
+                    map.computeIfAbsent(siteCode, k -> new ArrayList<>())
+                       .add(new IncidentPeriod(debut, fin, services));
+                }
+                for (List<IncidentPeriod> list : map.values()) {
+                    list.sort(Comparator.comparing(p -> p.debut));
+                }
+            } catch (Exception ignored) {}
+            incidentSiteCache = map;
+        }
+    }
+
+    private static LocalDateTime toLocalDateTime(Object value) {
+        if (value == null) return null;
+        try {
+            if (value instanceof java.sql.Timestamp) {
+                return ((java.sql.Timestamp) value).toLocalDateTime();
+            }
+            if (value instanceof java.util.Date) {
+                return new java.sql.Timestamp(((java.util.Date) value).getTime()).toLocalDateTime();
+            }
+            return LocalDateTime.parse(value.toString());
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -268,6 +370,304 @@ public class ReUn22906Service {
                 .collect(Collectors.toList());
     }
 
+    public List<HzDailySeries> getHzDailyEvolution(String apn) {
+        List<HzDailySeries> result = queryHzDailyEvolution(null, apn);
+        if (result.isEmpty()) {
+            String anchor = resolveHzLatestDate();
+            if (anchor != null) {
+                result = queryHzDailyEvolution(anchor, apn);
+            }
+        }
+        return result;
+    }
+
+    private List<HzDailySeries> queryHzDailyEvolution(String anchorDate, String apn) {
+        String anchorExpr = anchorDate == null ? "CURRENT_DATE" : "DATE('" + anchorDate + "')";
+
+        StringBuilder inList = new StringBuilder();
+        for (int i = 0; i < HZ_ERROR_TYPES.size(); i++) {
+            if (i > 0) inList.append(",");
+            inList.append("'").append(HZ_ERROR_TYPES.get(i).replace("'", "''")).append("'");
+        }
+
+        String apnClause = "";
+        List<Object> args = new ArrayList<>();
+        if (apn != null && !apn.trim().isEmpty() && !apn.trim().equalsIgnoreCase("all")) {
+            apnClause = " AND h.APN = ? ";
+            args.add(apn.trim());
+        }
+
+        String sql = "SELECT day, status, COUNT(*) AS devices FROM ("
+                + "SELECT DATE(h.`Time`) AS day, h.status, h.MSISDN "
+                + "FROM hz h "
+                + "WHERE h.status IN (" + inList + ")"
+                + "AND h.`Time` >= DATE_FORMAT(" + anchorExpr + " - INTERVAL " + (HZ_DAILY_DAYS - 1) + " DAY, '%Y-%m-%d 00:00:00') "
+                + "AND h.`Time` < DATE_FORMAT(" + anchorExpr + " + INTERVAL 1 DAY, '%Y-%m-%d 00:00:00') "
+                + apnClause
+                + "GROUP BY DATE(h.`Time`), h.status, h.MSISDN "
+                + "HAVING COUNT(*) >= CASE WHEN h.status = '" + HZ_STRICT_STATUS + "' THEN " + HZ_ERROR_THRESHOLD + " ELSE 1 END) t "
+                + "GROUP BY day, status "
+                + "ORDER BY status, day";
+
+        List<Map<String, Object>> rows = args.isEmpty()
+                ? jdbcTemplate.queryForList(sql)
+                : jdbcTemplate.queryForList(sql, args.toArray());
+
+        Map<String, List<HzDailyPoint>> seriesByStatus = new LinkedHashMap<>();
+        List<String> statusOrder = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            String status = row.get("status").toString();
+            String date = row.get("day").toString();
+            long devices = ((Number) row.get("devices")).longValue();
+            if (!seriesByStatus.containsKey(status)) {
+                seriesByStatus.put(status, new ArrayList<>());
+                statusOrder.add(status);
+            }
+            seriesByStatus.get(status).add(new HzDailyPoint(date, devices));
+        }
+
+        List<HzDailySeries> result = new ArrayList<>();
+        for (String status : statusOrder) {
+            result.add(new HzDailySeries(status, seriesByStatus.get(status)));
+        }
+        return result;
+    }
+
+    public List<NameCount> getHzOfferDistribution() {
+        List<NameCount> result = queryHzOfferDistribution(null);
+        if (result.isEmpty()) {
+            String anchor = resolveHzLatestDate();
+            if (anchor != null) {
+                result = queryHzOfferDistribution(anchor);
+            }
+        }
+        return result;
+    }
+
+    private List<NameCount> queryHzOfferDistribution(String anchorDate) {
+        String anchorExpr = anchorDate == null ? "CURRENT_DATE" : "DATE('" + anchorDate + "')";
+
+        String sql = "SELECT APN AS name, COUNT(*) AS count FROM hz "
+                + "WHERE APN IS NOT NULL AND APN <> '' "
+                + "AND `Time` >= DATE_FORMAT(" + anchorExpr + " - INTERVAL " + (HZ_DAILY_DAYS - 1) + " DAY, '%Y-%m-%d 00:00:00') "
+                + "AND `Time` < DATE_FORMAT(" + anchorExpr + " + INTERVAL 1 DAY, '%Y-%m-%d 00:00:00') "
+                + "GROUP BY APN ORDER BY count DESC";
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql);
+        List<NameCount> result = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            String name = row.get("name").toString();
+            long count = ((Number) row.get("count")).longValue();
+            result.add(new NameCount(name, count));
+        }
+        return result;
+    }
+
+    private String resolveHzLatestDate() {
+        long now = System.currentTimeMillis();
+        if (hzLatestDateCache != null && (now - hzLatestDateCacheTs) < HZ_LATEST_CACHE_TTL_MS) {
+            return hzLatestDateCache;
+        }
+        synchronized (this) {
+            now = System.currentTimeMillis();
+            if (hzLatestDateCache != null && (now - hzLatestDateCacheTs) < HZ_LATEST_CACHE_TTL_MS) {
+                return hzLatestDateCache;
+            }
+            List<String> dates = jdbcTemplate.queryForList(
+                    "SELECT DATE_FORMAT(MAX(`Time`), '%Y-%m-%d') AS latest FROM hz", String.class);
+            String latest = dates.isEmpty() || dates.get(0) == null ? null : dates.get(0);
+            hzLatestDateCache = latest;
+            hzLatestDateCacheTs = now;
+            return latest;
+        }
+    }
+
+    public List<HzError> getHzErrors(String date, String status, String apn, int limit) {
+        StringBuilder sql = new StringBuilder(
+                "SELECT MAX(`Time`) AS time, MSISDN, MAX(IMSI) AS imsi, MAX(site_Name) AS siteName, "
+                        + "MAX(error_code) AS errorCode, status, MAX(APN) AS apn, COUNT(*) AS count "
+                        + "FROM hz WHERE `Time` >= ? AND `Time` < ? AND status = ? ");
+        List<Object> args = new ArrayList<>();
+        args.add(date + " 00:00:00");
+        args.add(date + " 23:59:59");
+        args.add(status);
+
+        if (apn != null && !apn.trim().isEmpty() && !apn.trim().equalsIgnoreCase("all")) {
+            sql.append(" AND APN = ? ");
+            args.add(apn.trim());
+        }
+
+        sql.append(" GROUP BY MSISDN ORDER BY count DESC, MSISDN LIMIT ").append(Math.min(Math.max(limit, 1), 1000));
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
+        List<HzError> result = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            result.add(new HzError(
+                    row.get("time") == null ? null : row.get("time").toString(),
+                    row.get("msisdn") == null ? null : ((Number) row.get("msisdn")).longValue(),
+                    row.get("imsi") == null ? null : ((Number) row.get("imsi")).longValue(),
+                    row.get("siteName") == null ? null : row.get("siteName").toString(),
+                    row.get("errorCode") == null ? null : ((Number) row.get("errorCode")).longValue(),
+                    row.get("status") == null ? null : row.get("status").toString(),
+                    row.get("apn") == null ? null : row.get("apn").toString(),
+                    ((Number) row.get("count")).longValue(),
+                    null, null, null, null, null, null, false, false, null, null
+            ));
+        }
+        return result;
+    }
+
+    public HzMsisdnStats getHzMsisdnStats(Long msisdn, String dateFrom, String dateTo) {
+        Long fullMsisdn = HZ_MSISDN_OFFSET + msisdn;
+
+        StringBuilder statusSql = new StringBuilder(
+                "SELECT status, COUNT(*) AS cnt FROM hz WHERE MSISDN = ? AND status IS NOT NULL AND status <> '' ");
+        List<Object> args = new ArrayList<>();
+        args.add(fullMsisdn);
+        appendDateRange(statusSql, args, dateFrom, dateTo, "`Time`");
+        statusSql.append(" GROUP BY status ORDER BY cnt DESC");
+
+        List<Map<String, Object>> statusRows = jdbcTemplate.queryForList(statusSql.toString(), args.toArray());
+
+        long total = 0L;
+        List<NameCount> byStatus = new ArrayList<>();
+        for (Map<String, Object> row : statusRows) {
+            long cnt = ((Number) row.get("cnt")).longValue();
+            total += cnt;
+            byStatus.add(new NameCount(row.get("status").toString(), cnt));
+        }
+
+        List<HzError> recent = new ArrayList<>();
+        if (total > 0) {
+            StringBuilder recentSql = new StringBuilder(
+                    "SELECT `Time` AS time, MSISDN, IMSI, site_Name AS siteName, error_code AS errorCode, " +
+                    "status, APN FROM hz WHERE MSISDN = ? ");
+            List<Object> recentArgs = new ArrayList<>();
+            recentArgs.add(fullMsisdn);
+            appendDateRange(recentSql, recentArgs, dateFrom, dateTo, "`Time`");
+            recentSql.append(" ORDER BY `Time` DESC LIMIT 200");
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(recentSql.toString(), recentArgs.toArray());
+            for (Map<String, Object> row : rows) {
+                recent.add(new HzError(
+                        row.get("time") == null ? null : row.get("time").toString(),
+                        row.get("msisdn") == null ? null : ((Number) row.get("msisdn")).longValue(),
+                        row.get("imsi") == null ? null : ((Number) row.get("imsi")).longValue(),
+                        row.get("siteName") == null ? null : row.get("siteName").toString(),
+                        row.get("errorCode") == null ? null : ((Number) row.get("errorCode")).longValue(),
+                        row.get("status") == null ? null : row.get("status").toString(),
+                        row.get("apn") == null ? null : row.get("apn").toString(),
+                        1L,
+                        null, null, null, null, null, null, false, false, null, null
+                ));
+            }
+            enrichErrorsWithDeviceInfo(recent);
+        }
+
+        return new HzMsisdnStats(msisdn, total, byStatus, recent);
+    }
+
+    private void enrichErrorsWithDeviceInfo(List<HzError> errors) {
+        List<Long> originalMsisdns = errors.stream()
+                .filter(e -> e.getMsisdn() != null)
+                .map(e -> e.getMsisdn() - HZ_MSISDN_OFFSET)
+                .distinct()
+                .collect(Collectors.toList());
+        if (originalMsisdns.isEmpty()) {
+            return;
+        }
+
+        Map<Long, String> imsiByOriginalMsisdn = new HashMap<>();
+        List<String> imsis = new ArrayList<>();
+        for (Long m : originalMsisdns) {
+            Long fullMsisdn = HZ_MSISDN_OFFSET + m;
+            Optional<Long> imsiOpt = fixboxRepository.findImsiByMsisdn(fullMsisdn);
+            if (imsiOpt.isPresent()) {
+                String imsi = imsiOpt.get().toString();
+                imsiByOriginalMsisdn.put(m, imsi);
+                imsis.add(imsi);
+            }
+        }
+        if (imsis.isEmpty()) {
+            return;
+        }
+
+        Map<String, List<AcsMaxBox5G>> devicesByImsi = acsRepository.findAllByImsiIn(imsis).stream()
+                .filter(d -> d.getImsi() != null)
+                .collect(Collectors.groupingBy(d -> d.getImsi().replace("\r", "").trim()));
+
+        loadCaches();
+        for (HzError e : errors) {
+            if (e.getMsisdn() == null) continue;
+            Long originalMsisdn = e.getMsisdn() - HZ_MSISDN_OFFSET;
+            String imsi = imsiByOriginalMsisdn.get(originalMsisdn);
+            if (imsi == null) continue;
+            List<AcsMaxBox5G> devices = devicesByImsi.get(imsi);
+            if (devices == null || devices.isEmpty()) continue;
+            AcsMaxBox5G device = devices.get(0);
+            e.setRsrp4G(device.getRsrp());
+            e.setSinr4G(device.getSinr());
+            e.setRsrp5G(device.getRsrp5G());
+            e.setSinr5G(device.getSinr5G());
+
+            IncidentWithDeviceInfo tmp = new IncidentWithDeviceInfo();
+            resolveCellInfoCached(device, tmp);
+            e.setCellName(tmp.getCellName());
+            e.setCellName5G(tmp.getCellName5G());
+            e.setCongestionnee(tmp.isCongestionnee());
+            e.setSiteCode(tmp.getSiteCode());
+            resolveIncidentForSite(tmp, e.getTime());
+            e.setHasIncident(tmp.isHasIncident());
+            e.setIncidentPeriod(tmp.getIncidentPeriod());
+        }
+    }
+
+    private static void appendDateRange(StringBuilder sql, List<Object> args, String dateFrom, String dateTo, String col) {
+        if (dateFrom != null && !dateFrom.trim().isEmpty()) {
+            sql.append(" AND ").append(col).append(" >= ? ");
+            args.add(dateFrom.trim() + " 00:00:00");
+        }
+        if (dateTo != null && !dateTo.trim().isEmpty()) {
+            sql.append(" AND ").append(col).append(" <= ? ");
+            args.add(dateTo.trim() + " 23:59:59");
+        }
+    }
+
+    public List<HzDailySeries> getHzMsisdnDailyEvolution(Long msisdn, String dateFrom, String dateTo) {
+        if (msisdn == null) {
+            return Collections.emptyList();
+        }
+        Long fullMsisdn = HZ_MSISDN_OFFSET + msisdn;
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT DATE(`Time`) AS day, status, COUNT(*) AS devices FROM hz " +
+                "WHERE MSISDN = ? AND status IS NOT NULL AND status <> '' ");
+        List<Object> args = new ArrayList<>();
+        args.add(fullMsisdn);
+        appendDateRange(sql, args, dateFrom, dateTo, "`Time`");
+        sql.append(" GROUP BY DATE(`Time`), status ORDER BY status, day");
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql.toString(), args.toArray());
+
+        Map<String, List<HzDailyPoint>> seriesByStatus = new LinkedHashMap<>();
+        List<String> statusOrder = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            String status = row.get("status").toString();
+            String date = row.get("day").toString();
+            long devices = ((Number) row.get("devices")).longValue();
+            if (!seriesByStatus.containsKey(status)) {
+                seriesByStatus.put(status, new ArrayList<>());
+                statusOrder.add(status);
+            }
+            seriesByStatus.get(status).add(new HzDailyPoint(date, devices));
+        }
+
+        List<HzDailySeries> result = new ArrayList<>();
+        for (String status : statusOrder) {
+            result.add(new HzDailySeries(status, seriesByStatus.get(status)));
+        }
+        return result;
+    }
+
     public TopZonesResponse getTopZones(int limit) {
         List<ReUn22906> incidents = getFilteredIncidents();
         Map<Long, List<AcsMaxBox5G>> devicesByMsisdn = buildDevicesByMsisdn(incidents);
@@ -291,6 +691,59 @@ public class ReUn22906Service {
                 .collect(Collectors.toList());
 
         return new TopZonesResponse(zones, (long) counts.size());
+    }
+
+    public List<NearbySite> getNearbySites(Double lat, Double lng, double radiusMeters, LocalDate targetDate) {
+        loadCaches();
+        List<NearbySite> result = new ArrayList<>();
+        if (lat == null || lng == null || siteCache == null) {
+            return result;
+        }
+        for (Map.Entry<String, Double[]> e : siteCache.entrySet()) {
+            String site = e.getKey();
+            Double[] coords = e.getValue();
+            double dist = haversine(lat, lng, coords[0], coords[1]);
+            if (dist <= radiusMeters) {
+                NearbySite ns = new NearbySite();
+                ns.setSite(site);
+                ns.setLatitude(coords[0]);
+                ns.setLongitude(coords[1]);
+                List<IncidentPeriod> periods = incidentSiteCache != null ? incidentSiteCache.get(site) : null;
+                if (periods != null && !periods.isEmpty()) {
+                    List<IncidentPeriod> matching = periods;
+                    if (targetDate != null) {
+                        LocalDate from = targetDate.minusDays(1);
+                        LocalDate to = targetDate.plusDays(1);
+                        matching = periods.stream()
+                                .filter(p -> p.debut != null
+                                        && !p.debut.toLocalDate().isBefore(from)
+                                        && !p.debut.toLocalDate().isAfter(to))
+                                .collect(Collectors.toList());
+                    }
+                    if (!matching.isEmpty()) {
+                        IncidentPeriod last = matching.get(matching.size() - 1);
+                        String debut = last.debut != null ? last.debut.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "-";
+                        String fin = last.fin != null ? last.fin.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "-";
+                        ns.setHasIncident(true);
+                        ns.setIncidentPeriod(debut + " \u2192 " + fin);
+                        ns.setIncidentTech(resolveTechLabel(last.services));
+                    }
+                }
+                result.add(ns);
+            }
+        }
+        result.sort(Comparator.comparingDouble(ns -> haversine(lat, lng, ns.getLatitude(), ns.getLongitude())));
+        return result;
+    }
+
+    private static double haversine(double lat1, double lng1, double lat2, double lng2) {
+        double r = 6371000;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     private String resolveSitePrefix(AcsMaxBox5G device) {
@@ -341,9 +794,9 @@ public class ReUn22906Service {
     }
 
     private List<Map<String, Object>> fetchHzCounts() {
-        String sql = "SELECT h.MSISDN - " + HZ_MSISDN_OFFSET + " AS inc_msisdn, h.status, COUNT(*) AS cnt "
-                + "FROM hz h "
-                + "JOIN re_u_n2_29_06 r ON h.MSISDN = " + HZ_MSISDN_OFFSET + " + CAST(r.MSISDN_concern\u00e9 AS UNSIGNED) "
+        String sql = "SELECT STRAIGHT_JOIN h.MSISDN - " + HZ_MSISDN_OFFSET + " AS inc_msisdn, h.status, COUNT(*) AS cnt "
+                + "FROM re_u_n2_29_06 r "
+                + "JOIN hz h ON h.MSISDN = " + HZ_MSISDN_OFFSET + " + CAST(r.MSISDN_concern\u00e9 AS UNSIGNED) "
                 + "WHERE h.status IS NOT NULL AND h.status <> '' "
                 + "AND h.Time >= DATE_SUB(r.Cr\u00e9\u00e9_le, INTERVAL " + HZ_WINDOW_DAYS + " DAY) "
                 + "AND h.Time <= DATE_ADD(r.Cr\u00e9\u00e9_le, INTERVAL " + HZ_WINDOW_DAYS + " DAY) "
@@ -369,6 +822,7 @@ public class ReUn22906Service {
                 info.setCellName(fullCellName);
                 if (rawCellName.length() >= 8) {
                     String sitePrefix = rawCellName.substring(0, 8);
+                    info.setSiteCode(sitePrefix);
                     if (siteCache != null) {
                         Double[] coords = siteCache.get(sitePrefix);
                         if (coords != null) {
@@ -393,6 +847,64 @@ public class ReUn22906Service {
             }
         } catch (Exception e) {
             // ignore
+        }
+    }
+
+    private void resolveIncidentForSite(IncidentWithDeviceInfo info, String reclamationCreated) {
+        info.setHasIncident(false);
+        String siteCode = info.getSiteCode();
+        if (siteCode == null || incidentSiteCache == null) {
+            return;
+        }
+        LocalDateTime reclamationDt = parseReclamationDate(reclamationCreated);
+        if (reclamationDt == null) {
+            return;
+        }
+        List<IncidentPeriod> periods = incidentSiteCache.get(siteCode);
+        if (periods == null || periods.isEmpty()) {
+            return;
+        }
+        for (IncidentPeriod p : periods) {
+            if (p.debut == null) {
+                continue;
+            }
+            if (p.debut.toLocalDate().equals(reclamationDt.toLocalDate()) && !p.debut.isAfter(reclamationDt)) {
+                info.setHasIncident(true);
+                String debut = p.debut.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                String fin = p.fin != null ? p.fin.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "-";
+                info.setIncidentPeriod(debut + " \u2192 " + fin);
+                info.setIncidentTech(resolveTechLabel(p.services));
+                return;
+            }
+        }
+    }
+
+    private static String resolveTechLabel(String services) {
+        if (services == null || services.isEmpty()) {
+            return null;
+        }
+        LinkedHashSet<String> techs = new LinkedHashSet<>();
+        for (String part : services.trim().split("/")) {
+            String t = part.trim();
+            if (t.equals("4G") || t.equals("5G") || t.equals("4G_TDD") || t.equals("TDD")) {
+                techs.add(t.equals("4G_TDD") || t.equals("TDD") ? "4G" : t);
+            }
+        }
+        return techs.isEmpty() ? services.trim() : String.join("/", techs);
+    }
+
+    private static LocalDateTime parseReclamationDate(String created) {
+        if (created == null || created.isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(created, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        } catch (Exception e) {
+            try {
+                return LocalDateTime.parse(created, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+            } catch (Exception e2) {
+                return null;
+            }
         }
     }
 }

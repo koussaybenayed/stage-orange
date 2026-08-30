@@ -33,7 +33,7 @@ export class ProblemMapComponent implements OnInit, AfterViewInit, OnDestroy {
   problemSites: ProblemSite[] = [];
   topZones: TopZone[] = [];
 
-  filterType: 'all' | 'hzerror' = 'all';
+  filterType: 'all' | 'hzerror' | 'incident' = 'all';
 
   readonly topZonesCount = 10;
 
@@ -129,14 +129,46 @@ export class ProblemMapComponent implements OnInit, AfterViewInit, OnDestroy {
     this.renderMarkers(true);
   }
 
-  hasHzError(inc: IncidentWithDeviceInfo): boolean {
+  private hzErrorStatuses(inc: IncidentWithDeviceInfo): string[] {
     const hz = inc.hzError;
-    return !!hz && hz.trim() !== '' && hz !== 'No HZ errors';
+    if (!hz) return [];
+    const out: string[] = [];
+    for (const part of hz.split(',')) {
+      const p = part.trim();
+      if (!p) continue;
+      const m = p.match(/^(.*?)\((\d+)\)$/);
+      out.push(m ? m[1].trim() : p);
+    }
+    return out;
+  }
+
+  private egciHomeZoneCount(): number {
+    return this.allIncidents.filter(inc => {
+      const s = this.hzErrorStatuses(inc);
+      return s.length === 1 && s[0] === 'EGCI not in Home Zone';
+    }).length;
+  }
+
+  hasHzError(inc: IncidentWithDeviceInfo): boolean {
+    const statuses = this.hzErrorStatuses(inc);
+    if (statuses.length === 0) return false;
+
+    // 'Authorized' seul -> à ne pas compter
+    if (statuses.length === 1 && statuses[0] === 'Authorized') return false;
+
+    // 'EGCI not in Home Zone' seul et moins de 10 occurrences -> à ne pas compter
+    if (statuses.length === 1 && statuses[0] === 'EGCI not in Home Zone'
+        && this.egciHomeZoneCount() < 10) return false;
+
+    return true;
   }
 
   private filteredIncidents(): IncidentWithDeviceInfo[] {
     if (this.filterType === 'hzerror') {
       return this.allIncidents.filter(inc => this.hasHzError(inc));
+    }
+    if (this.filterType === 'incident') {
+      return this.allIncidents.filter(inc => inc.hasIncident);
     }
     return this.allIncidents;
   }
@@ -148,6 +180,7 @@ export class ProblemMapComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private siteNameOf(inc: IncidentWithDeviceInfo): string {
+    if (inc.siteCode) return inc.siteCode;
     return inc.cellName && inc.cellName.length >= 8
       ? inc.cellName.substring(0, 8)
       : 'Site inconnu';
@@ -220,7 +253,10 @@ export class ProblemMapComponent implements OnInit, AfterViewInit, OnDestroy {
       });
 
       const sujetList = site.incidents.map(inc =>
-        `<li><b>${inc.requestNumber}</b>: ${inc.sujet}</li>`
+        `<li><b>${inc.requestNumber}</b>: ${inc.sujet}` +
+        (this.filterType === 'incident' && inc.incidentPeriod
+          ? `<br><small>${inc.incidentTech ? '[' + inc.incidentTech + '] ' : ''}${inc.incidentPeriod}</small>` : '') +
+        `</li>`
       ).join('');
 
       const popupContent = `
@@ -292,6 +328,16 @@ export class ProblemMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   getTotalIncidents(): number {
     return this.incidents.length;
+  }
+
+  getIncidentSitesCount(): number {
+    const set = new Set<string>();
+    for (const inc of this.allIncidents) {
+      if (inc.hasIncident && inc.siteCode) {
+        set.add(inc.siteCode);
+      }
+    }
+    return set.size;
   }
 
   getHzErrorCount(): number {

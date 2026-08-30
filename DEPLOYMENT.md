@@ -6,17 +6,19 @@
 
 This document is intended for the **Infrastructure team** to deploy and host the application in production. It covers the database (`orange_db`), the backend (Spring Boot REST API), the frontend (Angular), and the deployment steps.
 
+> **Note on the DB schema:** the database was recently reworked. Several new tables were added (`incident`, `incident_site`, `alarmes_all_log_nbi`, `famille`, `sous_famille`, `users`, `_tmp_excel_ms`, `re_u_n2_29_06_backup_20260813`) and some existing tables changed (`re_u_n2_29_06` gained `contact`/`X`/`Y`; `acsmaxbox_5g` moved to InnoDB with a reduced row count). Sections §4 and §5 below reflect the **current** schema and API.
+
 ---
 
 ## 1. System Overview
 
 | Component | What it does |
 |---|---|
-| **Frontend** | Angular 17 single-page app. Dashboard, device list/search, device detail, incidents view, and a Leaflet problem map. Served as static files behind Nginx. |
-| **Backend** | Spring Boot 3.2 REST API. Reads device metrics (`acsmaxbox_5g`), incident records (`re_u_n2_29_06`), radio cell data, and site coordinates from MySQL `orange_db`. Port **8081**. |
+| **Frontend** | Angular 17 single-page app. Dashboard, device list/search, device detail, incident devices view, Home Zone / HZ-error analysis, and a Leaflet problem map. Served as static files behind Nginx. |
+| **Backend** | Spring Boot 3.2 REST API. Reads device metrics (`acsmaxbox_5g`), incident records (`re_u_n2_29_06`), network incidents (`incident` + `incident_site`), HZ errors (`hz`), radio cell data, site coordinates (`site_otn`), and MSISDN↔IMSI lookups (`fixbox_combined_table`) from MySQL `orange_db`. Port **8081**. |
 | **Database** | MySQL 8.0+ database named `orange_db` on WAMP (local) — must be recreated in production with the same schema/data. |
 
-> Note: the application is **read-heavy and data-heavy**. The largest table (`acsmaxbox_5g`) currently holds ~29.3M rows (~7.3 GB of data + ~1 GB of indexes). Plan disk and memory accordingly.
+> The application is **read-heavy**. The largest table (`acsmaxbox_5g`) currently holds ~1.03M rows while `hz` (HZ network-status events) is the largest table by size. Plan disk and memory accordingly.
 
 ---
 
@@ -58,9 +60,9 @@ Request flow: Nginx → `/api/...` proxied to backend → JDBC → MySQL.
 - Build: Maven → artifact `device-monitoring-backend-1.0.0.jar`
 
 ### Frontend — `frontend/package.json`
-- Angular **17.x** (CLI 17.3.17), TypeScript **5.2**
+- Angular **17.x** (CLI 17.x), TypeScript **5.2**
 - Chart.js **4.4** + ng2-charts **4.1**
-- Leaflet **1.9.4** (map), RxJS **7.8**
+- Leaflet **1.9.4** (problem map), RxJS **7.8**
 - Build: `ng build --configuration production` → `dist/device-monitoring-frontend/`
 - Dev proxy: `frontend/proxy.conf.json` forwards `/api` → `http://localhost:8081`
 
@@ -77,36 +79,46 @@ Request flow: Nginx → `/api/...` proxied to backend → JDBC → MySQL.
 Defined in `backend/src/main/resources/application.properties`:
 
 ```properties
+server.port=8081
 spring.datasource.url=jdbc:mysql://localhost:3306/orange_db
 spring.datasource.username=root
 spring.datasource.password=
 spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 spring.jpa.hibernate.ddl-auto=none          # schema is managed externally, NOT auto-created
 spring.jpa.database-platform=org.hibernate.dialect.MySQL8Dialect
+spring.jpa.hibernate.naming.physical-strategy=org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
 ```
 
 Production must provide a real user/password (see section 6). `ddl-auto=none` means the schema must exist; the application never creates or alters tables.
 
-### 4.2 Tables (measured on the source WAMP database)
+### 4.2 Tables (measured on the source WAMP database, August 2026)
 
-| Table | Engine | Rows (approx) | Data size | Purpose |
-|---|---|---|---|---|
-| `acsmaxbox_5g` | InnoDB | 29,279,965 | ~7.3 GB | Device KPIs (main monitoring data) |
-| `acsmaxbox_5g_new` | InnoDB | 6,513,413 | ~1.6 GB | Staging/new device load (NOT used by app) |
-| `acsmaxbox_latest_incidents` | MyISAM | 1,359 | ~300 KB | Latest device snapshot per incident |
-| `etat_c_band` | MyISAM | 210 | ~16 KB | C-band congestion state → action mapping |
-| `fixbox_combined_table` | MyISAM | 625,039 | ~10 MB | MSISDN ↔ IMSI lookup |
-| `hz` | MyISAM | 1,269,832 | ~128 MB | Network handset status/error events |
-| `lte_cell_info_lm_2026_06_30_11_32_27_244` | MyISAM | 29,283 | ~13 MB | LTE cell reference data (huge flat file import) |
-| `nr_cells` | MyISAM | 4,087 | ~748 KB | 5G NR cell reference data |
-| `re_u_n2_29_06` | MyISAM | 2,704 | ~1.5 MB | Customer incident tickets ("Réunion" export) |
-| `site_otn` | MyISAM | 2,530 | ~81 KB | Site names → GPS coordinates |
+| Table | Engine | Rows (approx) | Purpose |
+|---|---|---|---|
+| `acsmaxbox_5g` | InnoDB | 1,031,827 | Device KPIs (main monitoring data) |
+| `acsmaxbox_5g_new` | InnoDB | 0 | Staging/new device load (NOT used by app) |
+| `acsmaxbox_latest_incidents` | MyISAM | 0 | Latest device snapshot per incident (deprecated — empty) |
+| `alarmes_all_log_nbi` | MyISAM | 49,620 | Alarms from NBI (alarm log) |
+| `etat_c_band` | MyISAM | 210 | C-band congestion state → action mapping |
+| `famille` | InnoDB | 27 | Incident family taxonomy (groups `sous_famille`) |
+| `fixbox_combined_table` | MyISAM | 625,555 | MSISDN ↔ IMSI lookup |
+| `hz` | MyISAM | 0 (see §4.3) | Network handset status/error events |
+| `incident` | InnoDB | 20,748 | Network incident records (management view) |
+| `incident_site` | InnoDB | 31,266 | Incident ↔ site mapping (many-to-many join) |
+| `lte_cell_info_lm_2026_06_30_11_32_27_244` | MyISAM | 29,283 | LTE cell reference data (huge flat file import) |
+| `nr_cells` | MyISAM | 4,087 | 5G NR cell reference data |
+| `re_u_n2_29_06` | MyISAM | 223 | Customer incident tickets ("Réunion" export) |
+| `re_u_n2_29_06_backup_20260813` | MyISAM | 2,704 | Backup of `re_u_n2_29_06` snapshot (13 Aug 2026) |
+| `site_otn` | MyISAM | 2,530 | Site names → GPS coordinates |
+| `sous_famille` | InnoDB | 241 | Incident sub-family (FK → `famille`) |
+| `users` | InnoDB | 0 | Application users (future auth; empty) |
+| `_tmp_excel_ms` | MyISAM | 641 | Temporary MSISDN import helper |
 
-**Important sizing note:** `acsmaxbox_5g` dominates. The whole DB is roughly **9–10 GB** including indexes. In production, provision at least **20 GB** of storage (plus growth), and consider converting the large MyISAM tables to InnoDB for crash safety (see section 8.4).
+> **Important sizing note:** `hz` (HZ network-status events) is the largest table by on-disk size (~1.85 GB of data + ~0.72 GB of indexes = ~2.6 GB total as currently stored), even though it currently holds **0 rows** in the working DB (its MyISAM files persist from the pre-rework load). `acsmaxbox_5g` is ~267 MB (227 MB data + 41 MB indexes at ~1.03M rows). Plan storage and memory accordingly, and provision at least 20 GB for a data-heavy `orange_db` overall.
 
 ### 4.3 Schema details
 
-#### `acsmaxbox_5g` — device KPIs (main table, 29M rows)
+#### `acsmaxbox_5g` — device KPIs (main table, ~1.03M rows)
 All signal columns are stored as `TEXT` (no numeric typing) — the app trims/parses them in Java.
 
 | Column | Type | Notes |
@@ -117,7 +129,7 @@ All signal columns are stored as `TEXT` (no numeric typing) — the app trims/pa
 | `deviceId` | text | Used in search |
 | `productclass` | text | |
 | `cellid` | text | Format `"eNodeBId-LocalCellId"` (e.g. `1234-5`), parsed by app |
-| `pci4g`, `pci5g` | text | Physical Cell IDs |
+| `pci4g`, `pci5g` | text | Physical Cell IDs (parsed as Double) |
 | `rscp4g`, `rscp5g`, `rssi4g`, `rssi5g` | text | RSCP/RSSI metrics |
 | `rsrp4g`, `rsrp5g` | text | RSRP metrics (4G / 5G) |
 | `sinr4g`, `sinr5g` | text | SINR metrics |
@@ -127,19 +139,46 @@ All signal columns are stored as `TEXT` (no numeric typing) — the app trims/pa
 | `date`, `hour`, `timestamp` | text | Measurement time (used for default sort `timestamp desc`) |
 | `type` | text | |
 
-> The app queries this table with `LIMIT`/pagination. No primary-key constraint exists in MySQL; the entity treats `SN` as the `@Id`.
+> No primary-key constraint exists in MySQL; the entity treats `SN` as the `@Id`. The app queries this table with `LIMIT`/pagination and two IMSI-based lookups (see §5.4).
 
-#### `re_u_n2_29_06` — incident tickets (2,704 rows)
-Columns: `Numéro_de_la_demande` (text), `Créé_le` (datetime), `Sujet` (text), `Description` (text), `MSISDN_concerné` (text), `Offre__Contrat` (text).
+#### `re_u_n2_29_06` — customer incident tickets (223 rows)
+Columns: `Numéro_de_la_demande` (text), `Créé_le` (datetime), `Sujet` (text), `Description` (text), `MSISDN_concerné` (text), `Offre__Contrat` (text), plus the new columns **`contact`** (varchar(30)) and **`X` / `Y`** (double).
 
-- The app filters incidents where `Sujet` contains "Déconnexion", "Echec de connexion", or "Lenteur" **AND** `Offre__Contrat` contains "MAXBOX 5G".
-- In the entity `ReUn22906`, `MSISDN_concerné` is mapped to a `Long` (`msisdn`) even though the column is `TEXT` in MySQL — production data must contain numeric strings only, otherwise JPA conversion fails.
+- The app's entity (`ReUn22906`) maps `Numéro_de_la_demande` → `requestNumber` (the `@Id`), `Créé_le` → `created`, `MSISDN_concerné` → `msisdn` (a `Long`; the column is `TEXT`, so production data must contain numeric strings only), and the new `contact`, `X`, `Y` fields.
+- Related incident analysis still filters `Sujet` for "Déconnexion", "Echec de connexion", or "Lenteur" and `Offre__Contrat` for "MAXBOX 5G".
+- `re_u_n2_29_06_backup_20260813` is a frozen backup of the pre-rework row set (2,704 rows) and is **not** used by the application.
+
+#### `incident` + `incident_site` — network incident management (NEW)
+The app correlates device/site data with **operational network incidents** through a join of these two tables via `JdbcTemplate`:
+
+- `incident` (20,748 rows, InnoDB): `Id_incident` (PK), `Date_debut`, `Date_fin`, `Nb_2G`, `Nb_3G`, `Nb_4G`, `Nb_4G_TDD`, `Nb_5G`, `services` (e.g. `4G/5G`), `Type_incident`, `cause`, `action`, `TOC`, `Duree`, `initiateur_id`, `fermer_par_id`, `FII_par_id`, `modifier_par_id`, `cause_depassement_id`, `id_sous_famille` (FK → `sous_famille`), `Semaine`, `Mois`, `An`, `nb_sites`, `Criticite`, `cause_alerte`, `crise`, `action_chez`, `mails`, `sms_envoye`, `sms_fin`, `MAJ`, `rai`, `T_incident`, `updated_at`, `created_at`, plus creation/closure timestamps.
+- `incident_site` (31,266 rows, InnoDB): composite PK `(Incident_Id, Site_Code)`, plus `Zone`, `updated_at`, `created_at`.
+
+The service loads `(Site_Code → list of [Date_debut, Date_fin, services])` into an in-memory cache and, given a device's site prefix and a reclamation date, flags `hasIncident` / `incidentPeriod` / `incidentTech`. `nearby-sites` uses the same cache to report whether a map site had an incident.
+
+#### `alarmes_all_log_nbi` — NBI alarms (NEW, 49,620 rows)
+Columns: `Id_alarme` (PK), `code_site`, `nom_alarme`, `date`, `detail`, `criticite`, `source`, `comment`, `date_insertion`, `Info_blocage`, `Info_blocage2`, `Deblocage`, `Blocage`, `Blocage2`, `marquage_statique`, `users`, `date_fin`, `date_creation_toc`. Not currently referenced by backend services but part of the production data model.
+
+#### `famille` / `sous_famille` — taxonomy (NEW)
+- `famille` (27 rows): `id_famille` (PK), `Nom_Famille`.
+- `sous_famille` (241 rows): `id_sous_famille` (PK), `Nom_sous_famille`, `id_famille` (FK → `famille`).
+The `incident` table references `sous_famille` for classification.
+
+#### `users` — application users (NEW, empty)
+`id` (PK), `name`, `login` (unique), `login_verified_at`, `password`, `remember_token`, `created_at`, `updated_at`, `cuid`, `phone`, `random_code`, `profile`, `logout_at`. Reserved for future authentication; no auth is currently enforced by the backend.
+
+#### `hz` — network status/error events (see sizing note)
+Columns: `Time` (text), `MSISDN`, `IMSI`, `IMSI_2`, `Site_ID`, `site_Name`, `error_code`, `status`, `code_resv1`, `code_resv2`, `APN`.
+**Mapping rule used by the app:** `hz.MSISDN = original MSISDN + 21600000000` (`HZ_MSISDN_OFFSET`). HZ windows use ±3 days (`HZ_WINDOW_DAYS`), error types are the set of statuses in `HZ_ERROR_TYPES`, and the daily-evolution analysis looks back `HZ_DAILY_DAYS` (5) days.
+
+#### `fixbox_combined_table` — MSISDN ↔ IMSI (625,555 rows)
+Columns: `MSISDN` (bigint, indexed `MUL`), `IMSI` (bigint). The `FixboxCombinedTableRepository.findImsiByMsisdn(fullMsisdn)` query maps an incident/HZ MSISDN (with the 216 offset) to a device IMSI.
 
 #### `lte_cell_info_lm_2026_06_30_11_32_27_244` — LTE cell reference (29,283 rows)
-Huge imported sheet (60+ columns: `eNodeB_Id`, `Local_cell_identity`, `Cell_Name`, `Cell_ID`, `Physical_cell_ID`, `Frequency_band`, …). The app uses `eNodeB_Id` + `Local_cell_identity` to resolve a `Cell_Name` for a device's `cellid`. The entity exposes only a subset (`Unnamed__62`, `enodeBID`, `Local_cell_identity`, `Cell_Name`).
+Huge imported sheet (60+ columns: `eNodeB_Id`, `Local_cell_identity`, `Cell_Name`, `Cell_ID`, `Physical_cell_ID`, `Frequency_band`, …). The app uses `eNodeB_Id` + `Local_cell_identity` to resolve a `Cell_Name` for a device's `cellid`. The `LteCellInfo` entity exposes only `Cell_Name` (Id), `enodeBID`, and `Local_cell_identity`.
 
 #### `nr_cells` — 5G NR cells (4,087 rows)
-Columns: `Subarea`, `RAT`, `Operator`, `gNodeB_ID`, `NR_NE_Name`, `Cell_Name`, `Cell_ID`, `TAC`, `Frequency_Band`, `Physical_Cell_ID`, `clé`, … The app maps `clé` (key = `prefix + PCI5G`) → `Cell_Name` to find the 5G cell name for a device.
+Columns: `Subarea`, `RAT`, `Operator`, `gNodeB_ID`, `NR_NE_Name`, `gNodeB_Function_Name`, `NE_Connection_Status`, `NR_Cell_ID`, `Cell_Name`, `Cell_ID`, `TAC`, `Frequency_Band`, `Physical_Cell_ID`, `DLNARFCN`, `Administrative_Status`, `Activation_Status`, `Operating_Status`, `Availability_Status`, `clé`, … The app maps `clé` (key = `prefix + PCI5G`) → `Cell_Name` to find the 5G cell name for a device.
 
 #### `site_otn` — site coordinates (2,530 rows)
 Columns: `site`, `Longitude_Sector` (double), `Latitude_Sector` (double), `CoverageType`. App caches `site → [lat, lng]` in memory at startup/first use.
@@ -147,22 +186,17 @@ Columns: `site`, `Longitude_Sector` (double), `Latitude_Sector` (double), `Cover
 #### `etat_c_band` — congestion/action lookup (210 rows)
 Columns: `Sites`, `sect`, `Étiquettes_de_lignes` (text), `Moyenne_de_NR_DL_User_Throughput_(Mbps)` (double), `Action` (text). App loads `Étiquettes_de_lignes → Action` to mark a 5G cell as "congestionnée".
 
-#### `hz` — network status events (1.27M rows)
-Columns: `Time` (text), `MSISDN` (bigint), `IMSI`, `IMSI_2`, `Site_ID`, `site_Name`, `error_code`, `status`, `code_resv1`, `code_resv2`, `APN`. 
-**Mapping rule used by the app:** `hz.MSISDN = original MSISDN + 21600000000` (`HZ_MSISDN_OFFSET`). The app matches incidents to `hz` rows within a ±3 day window (`HZ_WINDOW_DAYS`).
-
-#### `fixbox_combined_table` — MSISDN ↔ IMSI (625K rows)
-Columns: `MSISDN` (bigint), `IMSI` (bigint). Referenced by a repository but **currently unused by service logic**.
-
-#### `acsmaxbox_5g_new` / `acsmaxbox_latest_incidents`
-- `acsmaxbox_5g_new`: identical schema to `acsmaxbox_5g`; not used by the application.
-- `acsmaxbox_latest_incidents`: same columns as `acsmaxbox_5g`; used by native query `findAllByImsiIn` to map incident MSISDNs to devices.
+#### `acsmaxbox_5g_new` / `acsmaxbox_latest_incidents` / `_tmp_excel_ms`
+- `acsmaxbox_5g_new`: identical schema to `acsmaxbox_5g`; not used by the application (empty).
+- `acsmaxbox_latest_incidents`: identical columns to `acsmaxbox_5g`; the old native query that used it is no longer referenced — now empty.
+- `_tmp_excel_ms`: single-column (`ms` bigint PK) temporary import helper; not used by the application.
 
 ### 4.4 How MSISDN → device lookup works (business rule)
-1. Incident gives an MSISDN (e.g. `4123456789`).
-2. Backend derives the device IMSI: `"60501" + zero-padded 10-digit MSISDN` → e.g. `6050104123456789`.
-3. `IMSI` in `acsmaxbox_5g` / `acsmaxbox_latest_incidents` (after stripping `\r`) is matched against that value.
-4. Device's `cellid` (`eNodeBId-LocalCellId`) is resolved through `lte_cell_info...` to a cell name, then to a site prefix (first 8 chars) → coordinates from `site_otn`, and 5G cell via `nr_cells` (`prefix + PCI5G`).
+1. Incident (or HZ event) gives an MSISDN (e.g. `4123456789`).
+2. Backend builds the full network MSISDN: `fullMsisdn = 21600000000 + msisdn`.
+3. `fixbox_combined_table.findImsiByMsisdn(fullMsisdn)` → device IMSI.
+4. `IMSI` (after stripping `\r`) is matched against `acsmaxbox_5g` (`findAllByImsiIn` / `findByImsiAndRsrp5GIsNotNull`).
+5. Device's `cellid` (`eNodeBId-LocalCellId`) is resolved through `lte_cell_info...` to a cell name, then to a site prefix (first 8 chars) → coordinates from `site_otn`, and 5G cell via `nr_cells` (`prefix + PCI5G`). Congestion is looked up in `etat_c_band`.
 
 ---
 
@@ -197,23 +231,32 @@ java -jar target/device-monitoring-backend-1.0.0.jar
 | GET | `/api/devices/by-msisdn/{msisdn}` | Devices for an MSISDN (with cell/geo info) | — |
 
 #### Incident API — `/api/incidents` (table `re_u_n2_29_06`)
-| Method | Path | Description |
-|---|---|---|
-| GET | `/api/incidents` | Filtered incidents (Déconnexion / Echec de connexion / Lenteur + MAXBOX 5G) |
-| GET | `/api/incidents/with-device-info` | Incidents enriched with device KPIs, cell names, coordinates, HZ errors |
-| GET | `/api/incidents/stats/overview` | `{ totalIncidents, lastDay, last7Days }` |
-| GET | `/api/incidents/stats/by-type` | Count by `Sujet` |
-| GET | `/api/incidents/stats/by-offre` | Count by `Offre__Contrat` |
-| GET | `/api/incidents/stats/by-date` | Count by date |
-| GET | `/api/incidents/stats/hzerror` | HZ error distribution per incident (within ±3 days) |
-| GET | `/api/incidents/top-zones` | Top congested zones by site prefix | `limit` (10) |
+| Method | Path | Description | Query params |
+|---|---|---|---|
+| GET | `/api/incidents` | All incidents ordered by `created` desc | — |
+| GET | `/api/incidents/with-device-info` | Incidents enriched with device KPIs, cell names, coordinates, HZ errors, incident-site correlation | `msisdn` (optional filter) |
+| GET | `/api/incidents/stats/overview` | `{ totalIncidents, lastDay, last7Days }` | — |
+| GET | `/api/incidents/stats/by-type` | Count by `Sujet` | — |
+| GET | `/api/incidents/stats/by-offre` | Count by `Offre__Contrat` | — |
+| GET | `/api/incidents/stats/by-date` | Count by date | — |
+| GET | `/api/incidents/stats/hzerror` | HZ error distribution per incident (within ±3 days) | — |
+| GET | `/api/incidents/hz/daily-evolution` | HZ error types count per day (last 5 days) | `apn` (optional filter) |
+| GET | `/api/incidents/hz/offers` | HZ rows grouped by APN (last 5 days) | — |
+| GET | `/api/incidents/hz/errors` | HZ error rows for a date/status (grouped by MSISDN) | `date`, `status`, `apn`, `limit` (200) |
+| GET | `/api/incidents/nearby-sites` | Sites within radius with optional incident info | `lat`, `lng`, `radius` (5000), `date` |
+| GET | `/api/incidents/top-zones` | Top congested/site zones | `limit` (10) |
+| GET | `/api/incidents/hz/msisdn/{msisdn}` | HZ stats for one MSISDN (status counts + recent errors), enriched with device/site info | `dateFrom`, `dateTo` |
+| GET | `/api/incidents/hz/msisdn/{msisdn}/daily-evolution` | HZ daily series for one MSISDN | `dateFrom`, `dateTo` |
 
 ### 5.4 Important backend behaviors the infra team should know
 - **CORS is wide open** (`allowedOrigins("*")` in `DeviceMonitoringApplication.java`) — fine for a stage app; restrict in production.
-- Several heavy endpoints (`/with-device-info`, `/top-zones`, `/stats/hzerror`) compute in Java memory and fire **multiple SQL queries per incident** (`hz`, `acsmaxbox_latest_incidents`, reference caches). They are not cheap — expect higher CPU/latency.
-- Reference data (`site_otn`, `lte_cell_info…`, `nr_cells`, `etat_c_band`) is cached **in JVM memory** on first use (not refreshed). Restart the backend after updating these tables.
+- **In-memory reference caches** (`site_otn`, `lte_cell_info…`, `nr_cells`, `etat_c_band`, and the `incident`+`incident_site` join) are loaded once per JVM on first use and never refreshed — **restart the backend after updating these tables**.
+- **HZ latest-date cache**: `resolveHzLatestDate()` caches `MAX(hz.Time)` for 1 hour (`HZ_LATEST_CACHE_TTL_MS`) and is pre-warmed on startup in a daemon thread.
+- Several heavy endpoints (`/with-device-info`, `/top-zones`, `/stats/hzerror`, `/hz/msisdn/*`) compute in Java memory and fire multiple SQL queries (`hz`, `fixbox_combined_table`, `acsmaxbox_5g`) plus full reference-cache loads. They are not cheap — expect higher CPU/latency.
+- `HZ_ERROR_TYPES` filtering uses status values `EGCI not in Home Zone`, `ECGI Not authorized`, `TAC not allowed`, `Temporarily Blocked`, `IMEI_TAC not allowed`, `Session rejected`. The strict status `EGCI not in Home Zone` needs ≥3 occurrences (`HZ_ERROR_THRESHOLD`) to count.
 - The `hz` window uses string timestamps (`yyyy-MM-dd HH:mm:ss`); keep that format in prod data.
-- `searchDevices` / default sort reference `timestamp`, so index/sort by `timestamp` in MySQL for acceptable performance on 29M rows.
+- `searchDevices` / default sort reference `timestamp`, so index/sort by `timestamp` in MySQL for acceptable performance.
+- The `hz` `Time` column is a `TEXT` string that is parsed as a `DATE(...)`. Ensure it stays numeric/`yyyy-MM-dd HH:mm:ss` formatted.
 
 ---
 
@@ -227,7 +270,16 @@ npm start          # ng serve --proxy-config proxy.conf.json  → http://localho
 ```
 The dev proxy (`proxy.conf.json`) sends `/api` → `http://localhost:8081`.
 
-### 6.2 Production build
+### 6.2 Routes / views
+- `/dashboard` — overview cards, incident stats, HZ charts
+- `/home-zone` — Home Zone / APN analysis
+- `/hz-errors` — detailed HZ error exploration (date/status/APN drill-down)
+- `/devices` — device list + search
+- `/devices/by-msisdn/:msisdn` — device(s) for a given MSISDN
+- `/devices/:id` — device detail / edit
+- `/problem-map` — Leaflet map with problem sites (`nearby-sites` / `top-zones`)
+
+### 6.3 Production build
 ```bash
 cd frontend
 npm run build:prod          # = ng build --configuration production
@@ -236,7 +288,7 @@ npm run build:prod          # = ng build --configuration production
 - `src/environments/environment.prod.ts` → `apiUrl: '/api'` (same-origin relative URL).
 - The SPA is designed to sit **behind Nginx on the same origin**, with Nginx proxying `/api/` to the backend. There is **no hardcoded backend host** in the production bundle.
 
-### 6.3 Nginx config (already provided — `frontend/nginx.conf`)
+### 6.4 Nginx config (already provided — `frontend/nginx.conf`)
 ```nginx
 server {
     listen 80;
@@ -341,7 +393,7 @@ Create a dump on WAMP and import it in production:
 mysql -u orange_app -p orange_db < orange_db_dump.sql
 ```
 
-> ⚠️ The 29M-row `acsmaxbox_5g` will make the dump large (several GB) and slow. Plan the migration window and use `--single-transaction` for a consistent snapshot. Consider `--quick` and gzip (`| gzip`) to speed transfer.
+> ⚠️ The 29M-row `acsmaxbox_5g` from earlier snapshots can make the dump large/slow. In the current working DB `acsmaxbox_5g` is ~1.03M rows, but the on-disk tables (`hz`, `acsmaxbox_5g`) may still be large. Use `--single-transaction` for a consistent snapshot and consider `--quick` + gzip (`| gzip`) to speed transfer.
 
 ---
 
@@ -355,6 +407,7 @@ mysql -u orange_app -p orange_db < orange_db_dump.sql
 - [ ] Reduce verbose logging: `logging.level.com.orange.monitoring=DEBUG` → `INFO`, `org.hibernate.SQL=DEBUG` → off (perf + log volume).
 - [ ] Add a proper `spring.jpa.properties.hibernate.jdbc.batch_size` / query tuning if needed for the heavy read endpoints.
 - [ ] Run backend behind systemd / supervisor / container restart policy.
+- [ ] Decide the intended `hz` data load. The working DB has `hz` empty while its on-disk size is large; production must either load real HZ data or purge/compact the table before shipping.
 
 ### 8.2 Environment variables (Spring relaxed binding — overrides `application.properties`)
 | Variable | Default (dev) | Production value |
@@ -371,20 +424,16 @@ mysql -u orange_app -p orange_db < orange_db_dump.sql
 - Keep `.env`/credentials out of the repository.
 
 ### 8.4 Database operations notes for infra
-- `acsmaxbox_5g` has **no index on `timestamp`** — the default sort (`timestamp,desc`) will cause slow full scans on 29M rows. Create an index:
+- `acsmaxbox_5g` has **no index on `timestamp`** — the default sort (`timestamp,desc`) may cause slow scans on larger datasets. Create indexes:
   ```sql
   ALTER TABLE acsmaxbox_5g ADD INDEX idx_timestamp (`timestamp`);
   ALTER TABLE acsmaxbox_5g ADD INDEX idx_imsi (`IMSI`(20));
-  ALTER TABLE acsmaxbox_latest_incidents ADD INDEX idx_imsi (`IMSI`(20));
+  ALTER TABLE acsmaxbox_5g ADD INDEX idx_cellid (`cellid`(20));
   ```
-- Consider migrating MyISAM tables (`hz`, `fixbox_combined_table`, `re_u_n2_29_06`, reference tables) to **InnoDB** for crash safety and row-level locking:
-  ```sql
-  ALTER TABLE hz ENGINE=InnoDB; ALTER TABLE fixbox_combined_table ENGINE=InnoDB;
-  ALTER TABLE re_u_n2_29_06 ENGINE=InnoDB; /* and the reference tables */
-  ```
-  Test performance impact first (MyISAM was likely chosen for import speed).
-- `acsmaxbox_5g_new` is a duplicate staging table (~1.6 GB) not used by the app — exclude it from the prod migration if not needed.
-- Table names are case-sensitive on Linux (e.g. `re_u_n2_29_06`, `acsmaxbox_5g`). Match exactly.
+- `fixbox_combined_table.MSISDN` is already indexed (`MUL`) — the hot IMSI lookup relies on it. Keep that index and consider one on `IMSI`.
+- Consider migrating the large/join MyISAM tables (`hz`, `fixbox_combined_table`, reference tables) to **InnoDB** for crash safety and row-level locking. Test performance first (MyISAM was likely chosen for import speed).
+- `acsmaxbox_5g_new` is a duplicate staging table not used by the app — exclude it from the prod migration if not needed.
+- Table names are case-sensitive on Linux (e.g. `re_u_n2_29_06`, `lte_cell_info_lm_2026_06_30_11_32_27_244`). Match exactly.
 
 ---
 
@@ -394,12 +443,13 @@ mysql -u orange_app -p orange_db < orange_db_dump.sql
 |---|---|
 | Backend fails to start | DB not reachable, wrong credentials, or `orange_db` not imported. Check `SPRING_DATASOURCE_*`. |
 | 404 on `/api/...` from Nginx | `proxy_pass` target wrong, or backend not listening on 8081. |
-| Slow device list | Missing `timestamp` index on `acsmaxbox_5g` (29M rows). |
+| Slow device list | Missing `timestamp` index on `acsmaxbox_5g`. |
 | Blank page in production | Nginx `try_files` missing (must fall back to `/index.html` for SPA routing). |
-| Incidents show no device info | MSISDN → IMSI mapping (`60501%010d`) produces no match in `acsmaxbox_latest_incidents`; check IMSI data / CR chars. |
-| HZ errors empty | `hz` data not imported, timestamps not in `yyyy-MM-dd HH:mm:ss`, or MSISDN offset (21600000000) mismatch. |
+| Incidents show no device info | MSISDN → IMSI mapping (`21600000000 + msisdn`) produces no match in `fixbox_combined_table`, or the IMSI has no row in `acsmaxbox_5g`. |
+| HZ errors empty | `hz` table empty, timestamps not `yyyy-MM-dd HH:mm:ss`, or MSISDN offset (21600000000) mismatch. |
+| `hasIncident` / incidents on map empty | `incident` / `incident_site` tables empty, or incident `Date_debut` doesn't match the reclamation date; `services` returned by `resolveTechLabel`. |
 | Map shows no markers | `site_otn` empty or `site` prefix (first 8 chars of cell name) not present in `site_otn`. |
-| Stale cell/site info | Reference caches load once per JVM; restart backend after updating `lte_cell_info…`, `nr_cells`, `site_otn`, `etat_c_band`. |
+| Stale cell/site/incident info | Reference caches load once per JVM; restart backend after updating `lte_cell_info…`, `nr_cells`, `site_otn`, `etat_c_band`, `incident`, `incident_site`. |
 
 ---
 

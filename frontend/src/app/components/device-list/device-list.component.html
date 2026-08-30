@@ -75,6 +75,14 @@
           <option value="false">Non congestionné (X)</option>
         </select>
       </div>
+      <div class="filter-field">
+        <label for="incidentFilter">Incident site</label>
+        <select id="incidentFilter" [(ngModel)]="filterIncident" (ngModelChange)="onChangeIncident()">
+          <option value="">Tous</option>
+          <option value="true">En incident (Oui)</option>
+          <option value="false">Pas d'incident (Non)</option>
+        </select>
+      </div>
       <button class="btn-clear" (click)="clearFilters()">Effacer filtres</button>
       <button class="btn-export" (click)="exportToExcel()" [disabled]="filteredIncidents.length === 0"
               title="Exporter les incidents filtrés en Excel">
@@ -95,10 +103,13 @@
             <th>Date de creation</th>
             <th>Sujet</th>
             <th>MSISDN</th>
+            <th>Contact</th>
             <th>Offre/Contrat</th>
             <th>Cell Name 4G</th>
             <th>Cell Name 5G</th>
             <th>Congestionnée</th>
+            <th>Incident site</th>
+            <th>Période incident</th>
             <th>Action</th>
             <th>RSRP 4G</th>
             <th>SINR 4G</th>
@@ -114,6 +125,7 @@
             <td>{{ inc.created | date: 'short' }}</td>
             <td>{{ inc.sujet }}</td>
             <td class="mono">{{ inc.msisdn }}</td>
+            <td class="mono">{{ inc.contact || '-' }}</td>
             <td>{{ inc.offreContrat }}</td>
             <td>{{ inc.cellName || '-' }}</td>
             <td>{{ inc.cellName5G || '-' }}</td>
@@ -122,6 +134,20 @@
                     title="Cellule 5G présente dans l'état C-band">✓</span>
               <span *ngIf="!inc.congestionnee" class="badge-cong badge-non"
                     title="Cellule 5G absente de l'état C-band">X</span>
+            </td>
+            <td>
+              <span *ngIf="inc.hasIncident" class="badge-inc badge-inc-oui"
+                    [title]="'Site ' + (inc.siteCode || '-') + ' en incident'">Oui</span>
+              <span *ngIf="!inc.hasIncident" class="badge-inc badge-inc-non"
+                    title="Aucun incident pour ce site">Non</span>
+            </td>
+            <td>
+              <ng-container *ngIf="inc.hasIncident; else noPeriod">
+                <span class="inc-tech" [class.tech-5g]="inc.incidentTech === '5G'"
+                      [class.tech-4g]="inc.incidentTech === '4G'">{{ inc.incidentTech || '-' }}</span>
+                <span class="inc-period">{{ inc.incidentPeriod || '-' }}</span>
+              </ng-container>
+              <ng-template #noPeriod>-</ng-template>
             </td>
             <td>{{ inc.action || '-' }}</td>
             <td>{{ inc.rsrp4G || '-' }}</td>

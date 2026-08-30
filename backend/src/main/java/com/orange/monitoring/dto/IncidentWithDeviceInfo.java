@@ -12,6 +12,7 @@ public class IncidentWithDeviceInfo {
     private String created;
     private String sujet;
     private String description;
+    private String contact;
     private Long msisdn;
     private String offreContrat;
     private String cellName;
@@ -24,6 +25,12 @@ public class IncidentWithDeviceInfo {
     private Long debugImsi;
     private Double latitude;
     private Double longitude;
+    private Double x;
+    private Double y;
     private boolean congestionnee;
     private String action;
+    private String siteCode;
+    private boolean hasIncident;
+    private String incidentPeriod;
+    private String incidentTech;
 }

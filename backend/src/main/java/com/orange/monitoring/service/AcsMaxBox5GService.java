@@ -3,7 +3,6 @@ package com.orange.monitoring.service;
 import com.orange.monitoring.dto.DeviceWithCellInfo;
 import com.orange.monitoring.entity.AcsMaxBox5G;
 import com.orange.monitoring.entity.FixboxCombinedTable;
-import com.orange.monitoring.entity.LteCellInfo;
 import com.orange.monitoring.repository.AcsMaxBox5GRepository;
 import com.orange.monitoring.repository.FixboxCombinedTableRepository;
 import com.orange.monitoring.repository.LteCellInfoRepository;
@@ -137,13 +136,22 @@ public class AcsMaxBox5GService {
             info.setDownlinkMaxThrp(d.getDownlinkMaxThrp());
             info.setUplinkMaxThrp(d.getUplinkMaxThrp());
 
-            Optional<LteCellInfo> cellOpt = resolveCellInfo(d);
-            if (cellOpt.isPresent()) {
-                LteCellInfo cell = cellOpt.get();
-                String cellName = cell.getCellName();
-                info.setCellName(cell.getEnodeBId() + "" + cell.getLocalCellIdentity() + "" + cellName);
-                if (cellName != null && cellName.length() >= 8) {
-                    String sitePrefix = cellName.substring(0, 8);
+            Optional<String> cellNameOpt = resolveCellInfo(d);
+            if (cellNameOpt.isPresent()) {
+                String rawCellName = cellNameOpt.get();
+                String cellId = d.getCellId();
+                String prefix = "";
+                if (cellId != null && cellId.contains("-")) {
+                    String[] parts = cellId.split("-");
+                    try {
+                        prefix = Long.parseLong(parts[0].replaceFirst("^0+", "")) + "" + Long.parseLong(parts[1]);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+                String cellName = prefix + rawCellName;
+                info.setCellName(cellName);
+                if (rawCellName != null && rawCellName.length() >= 8) {
+                    String sitePrefix = rawCellName.substring(0, 8);
                     if (siteCache != null) {
                         Double[] coords = siteCache.get(sitePrefix);
                         if (coords != null) {
@@ -160,7 +168,7 @@ public class AcsMaxBox5GService {
         return result;
     }
 
-    private Optional<LteCellInfo> resolveCellInfo(AcsMaxBox5G device) {
+    private Optional<String> resolveCellInfo(AcsMaxBox5G device) {
         String cellId = device.getCellId();
         if (cellId == null || !cellId.contains("-")) {
             return Optional.empty();
@@ -169,7 +177,7 @@ public class AcsMaxBox5GService {
             String[] parts = cellId.split("-");
             Long eNodeBId = Long.parseLong(parts[0].replaceFirst("^0+", ""));
             Long localCellIdentity = Long.parseLong(parts[1]);
-            return lteCellInfoRepository.findByENodeBIdAndLocalCellIdentity(eNodeBId, localCellIdentity);
+            return lteCellInfoRepository.findCellNameByENodeBIdAndLocalCellIdentity(eNodeBId, localCellIdentity);
         } catch (NumberFormatException e) {
             return Optional.empty();
         }

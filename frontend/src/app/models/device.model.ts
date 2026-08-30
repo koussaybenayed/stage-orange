@@ -4,6 +4,7 @@ export interface Incident {
   sujet: string;
   msisdn: number;
   offreContrat: string;
+  contact?: string;
 }
 
 export interface IncidentWithDeviceInfo {
@@ -11,6 +12,7 @@ export interface IncidentWithDeviceInfo {
   created: string;
   sujet: string;
   description?: string;
+  contact?: string;
   msisdn: number;
   offreContrat: string;
   cellName: string;
@@ -23,8 +25,14 @@ export interface IncidentWithDeviceInfo {
   debugImsi?: number;
   latitude?: number;
   longitude?: number;
+  x?: number;
+  y?: number;
   congestionnee?: boolean;
   action?: string;
+  siteCode?: string;
+  hasIncident?: boolean;
+  incidentPeriod?: string;
+  incidentTech?: string;
 }
 
 export interface NameCount {
@@ -41,6 +49,53 @@ export interface IncidentOverview {
 export interface TopZonesResponse {
   zones: NameCount[];
   totalSites: number;
+}
+
+export interface HzDailyPoint {
+  date: string;
+  devices: number;
+}
+
+export interface HzDailySeries {
+  status: string;
+  points: HzDailyPoint[];
+}
+
+export interface HzMsisdnStats {
+  msisdn: number;
+  totalErrors: number;
+  byStatus: NameCount[];
+  recentErrors: HzError[];
+}
+
+export interface NearbySite {
+  site: string;
+  latitude: number;
+  longitude: number;
+  hasIncident: boolean;
+  incidentPeriod?: string;
+  incidentTech?: string;
+}
+
+export interface HzError {
+  time: string;
+  msisdn: number;
+  imsi?: number;
+  siteName?: string;
+  errorCode?: number;
+  status: string;
+  apn?: string;
+  count: number;
+  rsrp4G?: string;
+  sinr4G?: string;
+  rsrp5G?: string;
+  sinr5G?: string;
+  cellName?: string;
+  cellName5G?: string;
+  congestionnee?: boolean;
+  hasIncident?: boolean;
+  incidentPeriod?: string;
+  siteCode?: string;
 }
 
 export interface AcsMaxBox5G {

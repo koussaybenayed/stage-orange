@@ -1,0 +1,188 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Dashboard Home Zone</h1>
+    <p class="text-muted">Évolution quotidienne des incidents par type d'erreur HZ</p>
+  </div>
+
+  <div class="filter-bar">
+    <label class="filter-label" for="offer-select">Filtrer par offre / contrat</label>
+    <select id="offer-select" class="filter-select" [(ngModel)]="selectedOffer" (change)="onOfferChange()">
+      <option value="all">Toutes les offres</option>
+      <option *ngFor="let o of offers" [value]="o.name">{{ o.name }} · {{ o.count }}</option>
+    </select>
+  </div>
+
+  <div class="card stats-card">
+    <h2 class="stats-title">Statistiques unitaires</h2>
+    <p class="stats-subtitle">Saisissez un MSISDN pour afficher les erreurs HZ de ce terminal</p>
+    <form class="stats-form" (ngSubmit)="onMsisdnSubmit()">
+      <input
+        type="text"
+        inputmode="numeric"
+        class="stats-input"
+        placeholder="MSISDN ex : 0661234567"
+        [(ngModel)]="msisdnInput"
+        name="msisdn"
+        [disabled]="msisdnLoading"
+      />
+      <label class="filter-label" for="dateFrom">Début</label>
+      <input
+        type="date"
+        id="dateFrom"
+        class="stats-input stats-date"
+        [(ngModel)]="dateFrom"
+        name="dateFrom"
+        [disabled]="msisdnLoading"
+      />
+      <label class="filter-label" for="dateTo">Fin</label>
+      <input
+        type="date"
+        id="dateTo"
+        class="stats-input stats-date"
+        [(ngModel)]="dateTo"
+        name="dateTo"
+        [disabled]="msisdnLoading"
+      />
+      <button type="submit" class="btn-stats" [disabled]="msisdnLoading">
+        {{ msisdnLoading ? 'Chargement…' : 'Afficher les stats' }}
+      </button>
+    </form>
+
+    <div class="stats-error" *ngIf="msisdnError">{{ msisdnError }}</div>
+
+    <div class="stats-loading" *ngIf="msisdnLoading">
+      <span class="spinner"></span> Chargement des statistiques HZ…
+    </div>
+
+    <div class="stats-result" *ngIf="msisdnStats">
+      <div class="stats-summary">
+        <div class="stat-badge">
+          <span class="stat-badge-label">MSISDN</span>
+          <span class="stat-badge-value">{{ msisdnStats.msisdn }}</span>
+        </div>
+        <div class="stat-badge">
+          <span class="stat-badge-label">Total erreurs HZ</span>
+          <span class="stat-badge-value">{{ msisdnStats.totalErrors }}</span>
+        </div>
+      </div>
+
+      <div class="stats-block" *ngIf="msisdnSeries.length > 0">
+        <h3>Évolution quotidienne des incidents</h3>
+        <div class="charts-grid fade-in">
+          <div class="chart-card" *ngFor="let chart of msisdnCharts">
+            <h3>{{ chart.label }}</h3>
+            <p class="chart-subtitle">Évolution quotidienne des incidents</p>
+            <canvas baseChart type="line" [data]="chart.data" [options]="chart.options"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-block" *ngIf="msisdnStats.byStatus.length > 0">
+        <h3>Répartition par statut</h3>
+        <table class="stats-table">
+          <thead>
+            <tr>
+              <th>Statut</th>
+              <th>Occurrences</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of msisdnStats.byStatus">
+              <td>{{ s.name }}</td>
+              <td>{{ s.count }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="stats-block" *ngIf="msisdnStats.recentErrors.length > 0">
+        <h3>Erreurs récentes</h3>
+        <div class="table-scroll">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Statut</th>
+                <th>Site</th>
+                <th>Code</th>
+                <th>APN</th>
+                <th>RSRP 4G</th>
+                <th>SINR 4G</th>
+                <th>RSRP 5G</th>
+                <th>SINR 5G</th>
+                <th>Congestionnée</th>
+                <th>Incident site</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let e of msisdnStats.recentErrors">
+                <td class="mono">{{ e.time }}</td>
+                <td>{{ e.status }}</td>
+                <td>{{ e.siteName || '-' }}</td>
+                <td class="mono">{{ e.errorCode || '-' }}</td>
+                <td>{{ e.apn || '-' }}</td>
+                <td>{{ e.rsrp4G || '-' }}</td>
+                <td>{{ e.sinr4G || '-' }}</td>
+                <td>{{ e.rsrp5G || '-' }}</td>
+                <td>{{ e.sinr5G || '-' }}</td>
+                <td>
+                  <span *ngIf="e.congestionnee" class="badge-cong badge-oui"
+                        title="Cellule 5G présente dans l'état C-band">✓</span>
+                  <span *ngIf="!e.congestionnee" class="badge-cong badge-non"
+                        title="Cellule 5G absente de l'état C-band">X</span>
+                </td>
+                <td>
+                  <span *ngIf="e.hasIncident" class="badge-inc badge-inc-oui"
+                        [title]="'Site ' + (e.siteCode || '-') + ' en incident'">Oui</span>
+                  <span *ngIf="!e.hasIncident" class="badge-inc badge-inc-non"
+                        title="Aucun incident pour ce site">Non</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="stats-empty" *ngIf="msisdnStats.totalErrors === 0">
+        Aucune erreur HZ trouvée pour ce MSISDN.
+      </div>
+    </div>
+  </div>
+
+  <div class="card" *ngIf="errorMessage">
+    <div class="state state-error">
+      <span class="state-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <circle cx="12" cy="16" r="1"></circle>
+        </svg>
+      </span>
+      <div class="state-title">Erreur de chargement</div>
+      <div class="state-detail">{{ errorMessage }}</div>
+      <button class="btn-retry" (click)="loadDashboard()">Réessayer</button>
+    </div>
+  </div>
+
+  <div class="charts-grid" *ngIf="loading">
+    <div class="sk-card" *ngFor="let s of skeletonCharts">
+      <div class="sk-bar sk-bar-40"></div>
+      <div class="sk-chart"></div>
+    </div>
+  </div>
+
+  <div class="charts-grid" *ngIf="!loading && charts.length === 0">
+    <div class="chart-card">
+      <h3>Évolution quotidienne des incidents</h3>
+      <p class="chart-empty">Aucune donnée.</p>
+    </div>
+  </div>
+
+  <div class="charts-grid fade-in" *ngIf="!loading && charts.length > 0">
+    <div class="chart-card" *ngFor="let chart of charts">
+      <h3>{{ chart.label }}</h3>
+      <p class="chart-subtitle">Évolution quotidienne des incidents</p>
+      <canvas baseChart type="line" [data]="chart.data" [options]="chart.options"></canvas>
+    </div>
+  </div>
+</div>

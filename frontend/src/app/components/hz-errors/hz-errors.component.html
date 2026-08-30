@@ -1,0 +1,100 @@
+<div class="page">
+  <div class="page-header">
+    <button class="btn-back" (click)="goBack()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Retour au dashboard
+    </button>
+    <h1>Erreurs HZ</h1>
+    <p class="text-muted">
+      {{ status }} — le {{ date | date: 'dd/MM/yyyy' }}
+      <span *ngIf="apn"> · Offre: {{ apn }}</span>
+    </p>
+  </div>
+
+  <div class="filter-bar">
+    <label class="filter-label" for="offer-select">Filtrer par offre / contrat</label>
+    <select id="offer-select" class="filter-select" [(ngModel)]="apn" (change)="onOfferChange()">
+      <option value="">Toutes les offres</option>
+      <option *ngFor="let o of offers" [value]="o.name">{{ o.name }} · {{ o.count }}</option>
+    </select>
+  </div>
+
+  <div class="card" *ngIf="errorMessage">
+    <div class="state state-error">
+      <span class="state-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <circle cx="12" cy="16" r="1"></circle>
+        </svg>
+      </span>
+      <div class="state-title">Erreur de chargement</div>
+      <div class="state-detail">{{ errorMessage }}</div>
+      <button class="btn-retry" (click)="loadErrors()">Réessayer</button>
+    </div>
+  </div>
+
+  <div class="card" *ngIf="isLoading">
+    <div class="skeleton">
+      <div class="sk-row" *ngFor="let row of skeletonRows">
+        <div class="sk-cell" *ngFor="let c of skeletonCols"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" *ngIf="!isLoading && !errorMessage && errors.length === 0">
+    <div class="state">
+      <span class="state-icon">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M22 12h-6l-2 3h-4l-2-3H2"></path>
+          <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+        </svg>
+      </span>
+      <div class="state-title">Aucune erreur</div>
+      <div class="state-detail">Aucune erreur HZ ne correspond aux critères.</div>
+    </div>
+  </div>
+
+  <ng-container *ngIf="!isLoading && !errorMessage && errors.length > 0">
+    <div class="table-wrap fade-in">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>MSISDN</th>
+            <th>Récurrences</th>
+            <th>Dernière occurrence</th>
+            <th>IMSI</th>
+            <th>Site</th>
+            <th>Code erreur</th>
+            <th>Offre (APN)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of pagedErrors">
+            <td class="mono"><strong>{{ e.msisdn }}</strong></td>
+            <td>
+              <span class="recur-badge">{{ e.count }}</span>
+            </td>
+            <td class="mono">{{ e.time }}</td>
+            <td class="mono">{{ e.imsi ?? '-' }}</td>
+            <td>{{ e.siteName || '-' }}</td>
+            <td class="mono">{{ e.errorCode ?? '-' }}</td>
+            <td>{{ e.apn || '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      <span class="text-muted">Total: {{ errors.length }} erreur(s)</span>
+      <div class="pagination" *ngIf="totalPages > 1">
+        <button class="btn-page" [disabled]="currentPage === 0" (click)="prevPage()">Précédent</button>
+        <span>Page {{ currentPage + 1 }} / {{ totalPages }}</span>
+        <button class="btn-page" [disabled]="(currentPage + 1) * pageSize >= errors.length" (click)="nextPage()">Suivant</button>
+      </div>
+    </div>
+  </ng-container>
+</div>

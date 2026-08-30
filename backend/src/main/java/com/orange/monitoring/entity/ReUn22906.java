@@ -32,4 +32,13 @@ public class ReUn22906 {
 
     @Column(name = "Offre__Contrat")
     private String offreContrat;
+
+    @Column(name = "contact")
+    private String contact;
+
+    @Column(name = "X")
+    private Double x;
+
+    @Column(name = "Y")
+    private Double y;
 }
