@@ -1,0 +1,14 @@
+# Database dumps (large, not for version control)
+*.sql
+*.sql.gz
+orange_db.sql
+
+# Logs and error output
+*.log
+*.err
+
+# Build outputs
+backend/target/
+frontend/dist/
+frontend/node_modules/
+frontend/.angular/
