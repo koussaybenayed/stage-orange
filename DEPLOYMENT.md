@@ -220,7 +220,9 @@ SELECT COUNT(*) FROM acsmaxbox_5g
 WHERE timestamp IS NOT NULL AND timestamp NOT REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$';
 
 -- 3) Index on IMSI (essential for the batch lookup findAllByImsiIn used by /devices, /top-zones,
---    /stats/by-product-class and /hz/msisdn/*). Create if missing:
+--    /stats/by-product-class and /hz/msisdn/*). The source DB uses the functional index
+--    idx_imsi_clean; confirm it exists (or add an equivalent):
+SHOW INDEX FROM acsmaxbox_5g WHERE Key_name LIKE '%imsi%';
 ALTER TABLE acsmaxbox_5g ADD INDEX idx_imsi (`IMSI`(20));
 
 -- 4) re_u_n2_29_06.Créé_le is a datetime — used as the comparison target:
@@ -271,7 +273,7 @@ java -jar target/device-monitoring-backend-1.0.0.jar
 | Method | Path | Description | Query params |
 |---|---|---|---|
 | GET | `/api/incidents` | All incidents ordered by `created` desc | — |
-| GET | `/api/incidents/with-device-info` | Incidents enriched with device KPIs, cell names, coordinates, HZ errors, incident-site correlation | `msisdn` (optional filter) |
+| GET | `/api/incidents/with-device-info` | Incidents enriched with device KPIs (Product class, RSRP/SINR 4G/5G from the ACS row closest to the reclamation date), cell names, coordinates, HZ errors, incident-site correlation | `msisdn` (optional filter) |
 | GET | `/api/incidents/stats/overview` | `{ totalIncidents, lastDay, last7Days }` | — |
 | GET | `/api/incidents/stats/by-type` | Count by `Sujet` | — |
 | GET | `/api/incidents/stats/by-offre` | Count by `Offre__Contrat` | — |
@@ -440,6 +442,7 @@ mysql -u orange_app -p orange_db < orange_db_dump.sql
 ### 8.1 Required before going live
 - [ ] Set real DB credentials (env vars or edit `application.properties`). Current file has **empty root password** — do not ship that.
 - [ ] Set the DB host: `localhost:3306` → production host/container DNS.
+- [ ] **Confirm the DB has the current feature data/index** — run the §4.5 confirmation SQL: `acsmaxbox_5g` has `productclass`, `rsrp4g/sinr4g/rsrp5g/sinr5g`, `timestamp` populated, `re_u_n2_29_06.Créé_le` is a datetime, `idx_imsi` index on `acsmaxbox_5g.IMSI` exists, and the reference tables (`lte_cell_info…`, `nr_cells`, `site_otn`, `etat_c_band`) are populated.
 - [ ] Set `server_name` and TLS on Nginx; change the `proxy_pass` target.
 - [ ] Restrict CORS in `DeviceMonitoringApplication.java` (`allowedOrigins("*")`) to the real domain.
 - [ ] Reduce verbose logging: `logging.level.com.orange.monitoring=DEBUG` → `INFO`, `org.hibernate.SQL=DEBUG` → off (perf + log volume).
@@ -462,10 +465,13 @@ mysql -u orange_app -p orange_db < orange_db_dump.sql
 - Keep `.env`/credentials out of the repository.
 
 ### 8.4 Database operations notes for infra
-- `acsmaxbox_5g` has **no index on `timestamp`** — the default sort (`timestamp,desc`) may cause slow scans on larger datasets. Create indexes. **The `idx_imsi` index is now REQUIRED** — the Product class / RSRP / SINR / closest-timestamp enrichment (`/with-device-info`, `/stats/by-product-class`, `/top-zones`, `/hz/msisdn/*`) batch-queries all rows for an IMSI via `findAllByImsiIn`; without it the feature degrades to a full table scan on ~1M rows:
+- `acsmaxbox_5g` has **no index on `timestamp`** — the default sort (`timestamp,desc`) may cause slow scans on larger datasets. Create indexes. **An index on IMSI is REQUIRED** — the Product class / RSRP / SINR / closest-timestamp enrichment (`/with-device-info`, `/stats/by-product-class`, `/top-zones`, `/hz/msisdn/*`) batch-queries all rows for an IMSI via `findAllByImsiIn` (`CAST(REPLACE(IMSI, CHAR(13), '') AS CHAR(20)) IN (...)`) ; without it the feature degrades to a full table scan on ~1M rows. The source DB already carries the **functional index `idx_imsi_clean`** on `cast(replace(IMSI, char(13), '') as char(20))`. Preserve it (or create an equivalent `idx_imsi` on `IMSI`):
   ```sql
+  -- already present in the source DB (functional index on cleaned IMSI):
+  --   idx_imsi_clean  ON acsmaxbox_5g (cast(replace(IMSI, char(13), '') as char(20)))
+  -- if missing, create an equivalent index:
+  ALTER TABLE acsmaxbox_5g ADD INDEX idx_imsi (`IMSI`(20));
   ALTER TABLE acsmaxbox_5g ADD INDEX idx_timestamp (`timestamp`);
-  ALTER TABLE acsmaxbox_5g ADD INDEX idx_imsi (`IMSI`(20));   -- REQUIRED for new features
   ALTER TABLE acsmaxbox_5g ADD INDEX idx_cellid (`cellid`(20));
   ```
 - `fixbox_combined_table.MSISDN` is already indexed (`MUL`) — the hot IMSI lookup relies on it. Keep that index and consider one on `IMSI`.
