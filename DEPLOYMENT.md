@@ -290,7 +290,7 @@ java -jar target/device-monitoring-backend-1.0.0.jar
 - **CORS is wide open** (`allowedOrigins("*")` in `DeviceMonitoringApplication.java`) — fine for a stage app; restrict in production.
 - **In-memory reference caches** (`site_otn`, `lte_cell_info…`, `nr_cells`, `etat_c_band`, and the `incident`+`incident_site` join) are loaded once per JVM on first use and never refreshed — **restart the backend after updating these tables**.
 - **HZ latest-date cache**: `resolveHzLatestDate()` caches `MAX(hz.Time)` for 1 hour (`HZ_LATEST_CACHE_TTL_MS`) and is pre-warmed on startup in a daemon thread.
-- Several heavy endpoints (`/with-device-info`, `/top-zones`, `/stats/hzerror`, `/hz/msisdn/*`) compute in Java memory and fire multiple SQL queries (`hz`, `fixbox_combined_table`, `acsmaxbox_5g`) plus full reference-cache loads. They are not cheap — expect higher CPU/latency.
+- Several heavy endpoints (`/with-device-info`, `/top-zones`, `/stats/hzerror`, `/stats/by-product-class`, `/hz/msisdn/*`) compute in Java memory and fire multiple SQL queries (`hz`, `fixbox_combined_table`, `acsmaxbox_5g`) plus full reference-cache loads. They are not cheap — expect higher CPU/latency.
 - `HZ_ERROR_TYPES` filtering uses status values `EGCI not in Home Zone`, `ECGI Not authorized`, `TAC not allowed`, `Temporarily Blocked`, `IMEI_TAC not allowed`, `Session rejected`. The strict status `EGCI not in Home Zone` needs ≥3 occurrences (`HZ_ERROR_THRESHOLD`) to count.
 - The `hz` window uses string timestamps (`yyyy-MM-dd HH:mm:ss`); keep that format in prod data.
 - `searchDevices` / default sort reference `timestamp`, so index/sort by `timestamp` in MySQL for acceptable performance.
@@ -309,10 +309,10 @@ npm start          # ng serve --proxy-config proxy.conf.json  → http://localho
 The dev proxy (`proxy.conf.json`) sends `/api` → `http://localhost:8081`.
 
 ### 6.2 Routes / views
-- `/dashboard` — overview cards, incident stats, HZ charts
+- `/dashboard` — overview cards, incident stats, HZ charts, and the **« Répartition par product class »** doughnut chart
 - `/home-zone` — Home Zone / APN analysis
 - `/hz-errors` — detailed HZ error exploration (date/status/APN drill-down)
-- `/devices` — device list + search
+- `/devices` — incident list with **Product class** column + « Product class » filter, device search
 - `/devices/by-msisdn/:msisdn` — device(s) for a given MSISDN
 - `/devices/:id` — device detail / edit
 - `/problem-map` — Leaflet map with problem sites (`nearby-sites` / `top-zones`)
@@ -484,6 +484,8 @@ mysql -u orange_app -p orange_db < orange_db_dump.sql
 | Slow device list | Missing `timestamp` index on `acsmaxbox_5g`. |
 | Blank page in production | Nginx `try_files` missing (must fall back to `/index.html` for SPA routing). |
 | Incidents show no device info | MSISDN → IMSI mapping (`21600000000 + msisdn`) produces no match in `fixbox_combined_table`, or the IMSI has no row in `acsmaxbox_5g`. |
+| Product class column / chart empty | `acsmaxbox_5g.productclass` missing/empty, or the IMSI batch lookup has no index (`idx_imsi`) making it slow/time-out, or the MSISDN→IMSI mapping is missing. |
+| RSRP/SINR not matching the reclamation date | `timestamp` column empty or not in `yyyy-MM-dd HH:mm:ss`, or reclamation `Créé_le` not a datetime. |
 | HZ errors empty | `hz` table empty, timestamps not `yyyy-MM-dd HH:mm:ss`, or MSISDN offset (21600000000) mismatch. |
 | `hasIncident` / incidents on map empty | `incident` / `incident_site` tables empty, or incident `Date_debut` doesn't match the reclamation date; `services` returned by `resolveTechLabel`. |
 | Map shows no markers | `site_otn` empty or `site` prefix (first 8 chars of cell name) not present in `site_otn`. |
