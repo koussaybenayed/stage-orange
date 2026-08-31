@@ -68,6 +68,13 @@
         </select>
       </div>
       <div class="filter-field">
+        <label for="productClassFilter">Product class</label>
+        <select id="productClassFilter" [(ngModel)]="filterProductClass" (ngModelChange)="onChangeProductClass()">
+          <option value="">Toutes</option>
+          <option *ngFor="let pc of productClasses" [value]="pc">{{ pc }}</option>
+        </select>
+      </div>
+      <div class="filter-field">
         <label for="congFilter">Congestionné</label>
         <select id="congFilter" [(ngModel)]="filterCongestion" (ngModelChange)="onChangeCongestion()">
           <option value="">Tous</option>
@@ -105,6 +112,7 @@
             <th>MSISDN</th>
             <th>Contact</th>
             <th>Offre/Contrat</th>
+            <th>Product class</th>
             <th>Cell Name 4G</th>
             <th>Cell Name 5G</th>
             <th>Congestionnée</th>
@@ -127,6 +135,7 @@
             <td class="mono">{{ inc.msisdn }}</td>
             <td class="mono">{{ inc.contact || '-' }}</td>
             <td>{{ inc.offreContrat }}</td>
+            <td>{{ inc.productClass || '-' }}</td>
             <td>{{ inc.cellName || '-' }}</td>
             <td>{{ inc.cellName5G || '-' }}</td>
             <td class="cong-cell">

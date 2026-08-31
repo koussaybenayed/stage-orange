@@ -81,6 +81,10 @@ export class DeviceService {
     return this.http.get<NameCount[]>(`${this.incidentUrl}/stats/by-offre`);
   }
 
+  getIncidentStatsByProductClass(): Observable<NameCount[]> {
+    return this.http.get<NameCount[]>(`${this.incidentUrl}/stats/by-product-class`);
+  }
+
   getIncidentStatsByDate(): Observable<NameCount[]> {
     return this.http.get<NameCount[]>(`${this.incidentUrl}/stats/by-date`);
   }

@@ -15,6 +15,7 @@ export interface IncidentWithDeviceInfo {
   contact?: string;
   msisdn: number;
   offreContrat: string;
+  productClass: string;
   cellName: string;
   rsrp4G: string;
   sinr4G: string;

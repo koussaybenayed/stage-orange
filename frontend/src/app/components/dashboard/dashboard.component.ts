@@ -20,6 +20,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   loadingZones = true;
   loadingType = true;
   loadingOffre = true;
+  loadingProductClass = true;
   loadingDate = true;
   loadingHz = true;
 
@@ -27,18 +28,20 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   typeChartData: any = { labels: [], datasets: [] };
   offreChartData: any = { labels: [], datasets: [] };
+  productClassChartData: any = { labels: [], datasets: [] };
   zoneChartData: any = { labels: [], datasets: [] };
   dateChartData: any = { labels: [], datasets: [] };
   hzChartData: any = { labels: [], datasets: [] };
 
   typeChartOptions: ChartOptions = {};
   offreChartOptions: ChartOptions = {};
+  productClassChartOptions: ChartOptions = {};
   zoneChartOptions: ChartOptions = {};
   dateChartOptions: ChartOptions = {};
   hzChartOptions: ChartOptions = {};
 
   skeletonStats = Array(4).fill(0);
-  skeletonCharts = Array(5).fill(0);
+  skeletonCharts = Array(6).fill(0);
 
   private palette = ['#FF7900', '#28a745', '#0d6efd', '#dc3545', '#6f42c1', '#20c997', '#fd7e14', '#d63384', '#17a2b8', '#e83e8c'];
   private themeSub: Subscription | undefined;
@@ -63,6 +66,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.loadingZones = true;
     this.loadingType = true;
     this.loadingOffre = true;
+    this.loadingProductClass = true;
     this.loadingDate = true;
     this.loadingHz = true;
 
@@ -92,6 +96,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (data) => { this.loadingOffre = false; this.buildOffreChart(data); this.applyChartTheme(); },
         error: (err) => { console.error('By offre error', err); this.loadingOffre = false; }
+      });
+
+    this.deviceService.getIncidentStatsByProductClass()
+      .pipe(timeout(60000))
+      .subscribe({
+        next: (data) => { this.loadingProductClass = false; this.buildProductClassChart(data); this.applyChartTheme(); },
+        error: (err) => { console.error('By product class error', err); this.loadingProductClass = false; }
       });
 
     this.deviceService.getIncidentStatsByDate()
@@ -128,6 +139,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   private buildOffreChart(data: NameCount[]): void {
     this.offreChartData = {
+      labels: data.map(d => `${d.name} · ${d.count}`),
+      datasets: [{
+        data: data.map(d => d.count),
+        backgroundColor: this.palette.slice(0, data.length),
+        borderWidth: 0,
+        hoverOffset: 6
+      }]
+    };
+  }
+
+  private buildProductClassChart(data: NameCount[]): void {
+    this.productClassChartData = {
       labels: data.map(d => `${d.name} · ${d.count}`),
       datasets: [{
         data: data.map(d => d.count),
@@ -211,6 +234,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
     };
 
     this.offreChartOptions = {
+      responsive: true,
+      maintainAspectRatio: true,
+      color: c.text,
+      plugins: { legend, tooltip }
+    };
+
+    this.productClassChartOptions = {
       responsive: true,
       maintainAspectRatio: true,
       color: c.text,

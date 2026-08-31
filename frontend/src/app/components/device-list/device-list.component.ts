@@ -20,12 +20,14 @@ export class DeviceListComponent implements OnInit {
   filterHzError = '';
   filterSujet = '';
   filterOffre = '';
+  filterProductClass = '';
   filterCongestion = '';
   filterIncident = '';
 
   pageSize = 20;
   currentPage = 0;
   offerContrats: string[] = [];
+  productClasses: string[] = [];
   hzErrorTypes: string[] = [];
   sujets: string[] = [];
 
@@ -50,6 +52,7 @@ export class DeviceListComponent implements OnInit {
             this.incidents = data;
             this.loadSujets();
             this.loadOfferContrats();
+            this.loadProductClasses();
             this.loadHzErrorTypes();
             this.applyFilters();
           } catch (err) {
@@ -83,6 +86,16 @@ export class DeviceListComponent implements OnInit {
       }
     }
     this.offerContrats = Array.from(set).sort();
+  }
+
+  private loadProductClasses(): void {
+    const set = new Set<string>();
+    for (const inc of this.incidents) {
+      if (inc.productClass) {
+        set.add(inc.productClass);
+      }
+    }
+    this.productClasses = Array.from(set).sort((a, b) => a.localeCompare(b));
   }
 
   private loadHzErrorTypes(): void {
@@ -120,6 +133,10 @@ export class DeviceListComponent implements OnInit {
     this.applyFilters();
   }
 
+  onChangeProductClass(): void {
+    this.applyFilters();
+  }
+
   onChangeCongestion(): void {
     this.applyFilters();
   }
@@ -134,13 +151,14 @@ export class DeviceListComponent implements OnInit {
       const hzMatch = !hz || this.hzErrorStatuses(inc).some(s => s === hz);
       const sujetMatch = !this.filterSujet || inc.sujet === this.filterSujet;
       const offreMatch = !this.filterOffre || inc.offreContrat === this.filterOffre;
+      const productClassMatch = !this.filterProductClass || inc.productClass === this.filterProductClass;
       const congMatch = !this.filterCongestion ||
         (this.filterCongestion === 'true' && !!inc.congestionnee) ||
         (this.filterCongestion === 'false' && !inc.congestionnee);
       const incidentMatch = !this.filterIncident ||
         (this.filterIncident === 'true' && !!inc.hasIncident) ||
         (this.filterIncident === 'false' && !inc.hasIncident);
-      return hzMatch && sujetMatch && offreMatch && congMatch && incidentMatch;
+      return hzMatch && sujetMatch && offreMatch && productClassMatch && congMatch && incidentMatch;
     });
     this.currentPage = 0;
     this.applyPaging();
@@ -182,6 +200,7 @@ export class DeviceListComponent implements OnInit {
       'Contact': inc.contact || '-',
       'IMSI concerné': inc.debugImsi ?? '-',
       'Offre/Contrat': inc.offreContrat,
+      'Product class': inc.productClass || '-',
       'Cell Name 4G': inc.cellName || '-',
       'Cell Name 5G': inc.cellName5G || '-',
       'Congestionnée': inc.congestionnee ? 'Oui' : 'Non',
@@ -207,7 +226,7 @@ export class DeviceListComponent implements OnInit {
       ws['!cols'] = [
         { wch: 20 }, { wch: 20 }, { wch: 32 }, { wch: 14 },
         { wch: 14 }, { wch: 24 }, { wch: 30 }, { wch: 26 },
-        { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 20 },
+        { wch: 26 }, { wch: 14 }, { wch: 22 }, { wch: 20 },
         { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
         { wch: 42 }, { wch: 12 }, { wch: 12 }, { wch: 12 }
       ];
@@ -230,6 +249,7 @@ export class DeviceListComponent implements OnInit {
     this.filterHzError = '';
     this.filterSujet = '';
     this.filterOffre = '';
+    this.filterProductClass = '';
     this.filterCongestion = '';
     this.filterIncident = '';
     this.applyFilters();

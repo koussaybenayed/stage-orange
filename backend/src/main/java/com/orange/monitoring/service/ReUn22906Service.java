@@ -28,6 +28,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -79,6 +80,11 @@ public class ReUn22906Service {
     private volatile String hzLatestDateCache;
     private volatile long hzLatestDateCacheTs;
 
+    private static final long HZ_DAILY_CACHE_TTL_MS = 5 * 60 * 1000L;
+    private static final long HZ_OFFER_CACHE_TTL_MS = 5 * 60 * 1000L;
+    private final Map<String, CachedHzDaily> hzDailyCache = new ConcurrentHashMap<>();
+    private final Map<String, CachedNameCounts> hzOfferCache = new ConcurrentHashMap<>();
+
     private static final List<String> HZ_ERROR_TYPES = Arrays.asList(
             "EGCI not in Home Zone",
             "ECGI Not authorized",
@@ -96,6 +102,24 @@ public class ReUn22906Service {
             this.debut = debut;
             this.fin = fin;
             this.services = services;
+        }
+    }
+
+    private static final class CachedHzDaily {
+        final long ts;
+        final List<HzDailySeries> value;
+        CachedHzDaily(long ts, List<HzDailySeries> value) {
+            this.ts = ts;
+            this.value = value;
+        }
+    }
+
+    private static final class CachedNameCounts {
+        final long ts;
+        final List<NameCount> value;
+        CachedNameCounts(long ts, List<NameCount> value) {
+            this.ts = ts;
+            this.value = value;
         }
     }
 
@@ -145,8 +169,9 @@ public class ReUn22906Service {
 
                 List<AcsMaxBox5G> devices = devicesByOriginalMsisdn.get(inc.getMsisdn());
                 if (devices != null && !devices.isEmpty()) {
-                    AcsMaxBox5G device = devices.get(0);
+                    AcsMaxBox5G device = selectClosestDevice(devices, inc.getCreated());
                     try { info.setDebugImsi(Long.parseLong(device.getImsi().replace("\r", "").trim())); } catch (Exception e) { /* ignore */ }
+                    info.setProductClass(device.getProductclass());
                     info.setRsrp4G(device.getRsrp());
                     info.setSinr4G(device.getSinr());
                     info.setRsrp5G(device.getRsrp5G());
@@ -328,6 +353,54 @@ public class ReUn22906Service {
         return result;
     }
 
+    /**
+     * Picks the ACS row whose timestamp is the closest to the reclamation's
+     * creation date. Falls back to the first device if timestamps cannot be parsed.
+     */
+    private AcsMaxBox5G selectClosestDevice(List<AcsMaxBox5G> devices, String reclamationCreated) {
+        if (devices == null || devices.isEmpty()) {
+            return null;
+        }
+        if (devices.size() == 1) {
+            return devices.get(0);
+        }
+        long target = toEpoch(reclamationCreated);
+        if (target == Long.MIN_VALUE) {
+            return devices.get(0);
+        }
+        AcsMaxBox5G best = null;
+        long bestDiff = Long.MAX_VALUE;
+        for (AcsMaxBox5G d : devices) {
+            long ts = toEpoch(d.getTimestamp());
+            if (ts == Long.MIN_VALUE) {
+                continue;
+            }
+            long diff = Math.abs(ts - target);
+            if (diff < bestDiff) {
+                bestDiff = diff;
+                best = d;
+            }
+        }
+        return best != null ? best : devices.get(0);
+    }
+
+    private static long toEpoch(String value) {
+        if (value == null || value.isEmpty()) {
+            return Long.MIN_VALUE;
+        }
+        try {
+            return java.time.LocalDateTime.parse(value.trim(), java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                    .atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli();
+        } catch (Exception e) {
+            try {
+                return java.time.LocalDate.parse(value.trim()).atStartOfDay()
+                        .atZone(java.time.ZoneOffset.UTC).toInstant().toEpochMilli();
+            } catch (Exception e2) {
+                return Long.MIN_VALUE;
+            }
+        }
+    }
+
     public IncidentOverview getOverview() {
         IncidentOverview overview = new IncidentOverview();
         overview.setTotalIncidents(repository.countFilteredIncidents());
@@ -342,6 +415,32 @@ public class ReUn22906Service {
 
     public List<NameCount> getOffreDistribution() {
         return toNameCounts(repository.countByOffre());
+    }
+
+    public List<NameCount> getProductClassDistribution() {
+        List<ReUn22906> incidents = getFilteredIncidents();
+        Map<Long, List<AcsMaxBox5G>> devicesByMsisdn = buildDevicesByMsisdn(incidents);
+
+        Map<String, Long> counts = new HashMap<>();
+        for (ReUn22906 inc : incidents) {
+            if (inc.getMsisdn() == null) {
+                continue;
+            }
+            List<AcsMaxBox5G> devices = devicesByMsisdn.get(inc.getMsisdn());
+            if (devices == null || devices.isEmpty()) {
+                continue;
+            }
+            AcsMaxBox5G device = selectClosestDevice(devices, inc.getCreated());
+            String productClass = device.getProductclass();
+            if (productClass != null && !productClass.trim().isEmpty()) {
+                counts.merge(productClass.trim(), 1L, Long::sum);
+            }
+        }
+
+        return counts.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .map(e -> new NameCount(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
     }
 
     public List<NameCount> getDateDistribution() {
@@ -371,14 +470,27 @@ public class ReUn22906Service {
     }
 
     public List<HzDailySeries> getHzDailyEvolution(String apn) {
-        List<HzDailySeries> result = queryHzDailyEvolution(null, apn);
-        if (result.isEmpty()) {
-            String anchor = resolveHzLatestDate();
-            if (anchor != null) {
-                result = queryHzDailyEvolution(anchor, apn);
-            }
+        String key = apn == null ? "all" : apn.trim().isEmpty() ? "all" : apn.trim();
+        long now = System.currentTimeMillis();
+        CachedHzDaily cached = hzDailyCache.get(key);
+        if (cached != null && (now - cached.ts) < HZ_DAILY_CACHE_TTL_MS) {
+            return cached.value;
         }
-        return result;
+        synchronized (this) {
+            cached = hzDailyCache.get(key);
+            if (cached != null && (now - cached.ts) < HZ_DAILY_CACHE_TTL_MS) {
+                return cached.value;
+            }
+            List<HzDailySeries> result = queryHzDailyEvolution(null, apn);
+            if (result.isEmpty()) {
+                String anchor = resolveHzLatestDate();
+                if (anchor != null) {
+                    result = queryHzDailyEvolution(anchor, apn);
+                }
+            }
+            hzDailyCache.put(key, new CachedHzDaily(System.currentTimeMillis(), result));
+            return result;
+        }
     }
 
     private List<HzDailySeries> queryHzDailyEvolution(String anchorDate, String apn) {
@@ -434,14 +546,26 @@ public class ReUn22906Service {
     }
 
     public List<NameCount> getHzOfferDistribution() {
-        List<NameCount> result = queryHzOfferDistribution(null);
-        if (result.isEmpty()) {
-            String anchor = resolveHzLatestDate();
-            if (anchor != null) {
-                result = queryHzOfferDistribution(anchor);
-            }
+        long now = System.currentTimeMillis();
+        CachedNameCounts cached = hzOfferCache.get("all");
+        if (cached != null && (now - cached.ts) < HZ_OFFER_CACHE_TTL_MS) {
+            return cached.value;
         }
-        return result;
+        synchronized (this) {
+            cached = hzOfferCache.get("all");
+            if (cached != null && (now - cached.ts) < HZ_OFFER_CACHE_TTL_MS) {
+                return cached.value;
+            }
+            List<NameCount> result = queryHzOfferDistribution(null);
+            if (result.isEmpty()) {
+                String anchor = resolveHzLatestDate();
+                if (anchor != null) {
+                    result = queryHzOfferDistribution(anchor);
+                }
+            }
+            hzOfferCache.put("all", new CachedNameCounts(System.currentTimeMillis(), result));
+            return result;
+        }
     }
 
     private List<NameCount> queryHzOfferDistribution(String anchorDate) {

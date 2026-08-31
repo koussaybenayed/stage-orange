@@ -79,6 +79,20 @@
       <p class="chart-empty">Aucune donnée.</p>
     </div>
 
+    <!-- Par product class -->
+    <div class="sk-card" *ngIf="loadingProductClass">
+      <div class="sk-bar sk-bar-40"></div>
+      <div class="sk-chart"></div>
+    </div>
+    <div class="chart-card fade-in" *ngIf="!loadingProductClass && productClassChartData.labels.length > 0">
+      <h3>Répartition par product class</h3>
+      <canvas baseChart type="doughnut" [data]="productClassChartData" [options]="productClassChartOptions"></canvas>
+    </div>
+    <div class="chart-card" *ngIf="!loadingProductClass && productClassChartData.labels.length === 0">
+      <h3>Répartition par product class</h3>
+      <p class="chart-empty">Aucune donnée.</p>
+    </div>
+
     <!-- Évolution dans le temps -->
     <div class="sk-card full-width" *ngIf="loadingDate">
       <div class="sk-bar sk-bar-40"></div>

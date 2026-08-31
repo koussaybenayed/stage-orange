@@ -8,6 +8,8 @@ This document is intended for the **Infrastructure team** to deploy and host the
 
 > **Note on the DB schema:** the database was recently reworked. Several new tables were added (`incident`, `incident_site`, `alarmes_all_log_nbi`, `famille`, `sous_famille`, `users`, `_tmp_excel_ms`, `re_u_n2_29_06_backup_20260813`) and some existing tables changed (`re_u_n2_29_06` gained `contact`/`X`/`Y`; `acsmaxbox_5g` moved to InnoDB with a reduced row count). Sections §4 and §5 below reflect the **current** schema and API.
 
+> **Application update (this iteration):** the incident list (`/devices`) now shows a **Product class** column, and **RSRP 4G / SINR 4G / RSRP 5G / SINR 5G** are taken from the ACS row whose `timestamp` is **closest to the reclamation's creation date** (`re_u_n2_29_06.Créé_le`). A **« Product class »** filter was added to the list and a **« Répartition par product class »** doughnut chart to the dashboard. **No new database columns or tables were created for this feature** — it relies on columns already present in `acsmaxbox_5g` (`productclass`, `rsrp4g`, `sinr4g`, `rsrp5g`, `sinr5g`, `timestamp`). The only **new index requirement** is on `acsmaxbox_5g.IMSI` (see §4.3 and §8.4), which the new batch IMSI lookup used by these features depends on. This must be confirmed present in the production database (see §4.5 "DB confirmation checklist").
+
 ---
 
 ## 1. System Overview
@@ -141,6 +143,8 @@ All signal columns are stored as `TEXT` (no numeric typing) — the app trims/pa
 
 > No primary-key constraint exists in MySQL; the entity treats `SN` as the `@Id`. The app queries this table with `LIMIT`/pagination and two IMSI-based lookups (see §5.4).
 
+> **Feature dependency (product class, RSRP/SINR, closest-timestamp):** the incident enrichment reads `productclass`, `rsrp4g`, `sinr4g`, `rsrp5g`, `sinr5g`, `cellid`, `pci5g` and the measurement time columns `timestamp` / `date` / `hour` from this table. To pick the row closest to a reclamation date, the backend compares the string `timestamp` (`yyyy-MM-dd HH:mm:ss`) against `re_u_n2_29_06.Créé_le`. **Must be confirmed in production:** these columns exist and are populated, `timestamp` stays in `yyyy-MM-dd HH:mm:ss` format, and an index on `IMSI` is present for the batch lookup (see §4.5).
+
 #### `re_u_n2_29_06` — customer incident tickets (223 rows)
 Columns: `Numéro_de_la_demande` (text), `Créé_le` (datetime), `Sujet` (text), `Description` (text), `MSISDN_concerné` (text), `Offre__Contrat` (text), plus the new columns **`contact`** (varchar(30)) and **`X` / `Y`** (double).
 
@@ -196,7 +200,40 @@ Columns: `Sites`, `sect`, `Étiquettes_de_lignes` (text), `Moyenne_de_NR_DL_User
 2. Backend builds the full network MSISDN: `fullMsisdn = 21600000000 + msisdn`.
 3. `fixbox_combined_table.findImsiByMsisdn(fullMsisdn)` → device IMSI.
 4. `IMSI` (after stripping `\r`) is matched against `acsmaxbox_5g` (`findAllByImsiIn` / `findByImsiAndRsrp5GIsNotNull`).
-5. Device's `cellid` (`eNodeBId-LocalCellId`) is resolved through `lte_cell_info...` to a cell name, then to a site prefix (first 8 chars) → coordinates from `site_otn`, and 5G cell via `nr_cells` (`prefix + PCI5G`). Congestion is looked up in `etat_c_band`.
+5. **For the incident list (`/devices`), the backend selects the ACS row whose `timestamp` is closest to the reclamation's creation date (`re_u_n2_29_06.Créé_le`)** — `selectClosestDevice()`. The **Product class**, **RSRP 4G / SINR 4G / RSRP 5G / SINR 5G**, and the `cellid` are read from that chosen row.
+6. Device's `cellid` (`eNodeBId-LocalCellId`) is resolved through `lte_cell_info...` to a cell name, then to a site prefix (first 8 chars) → coordinates from `site_otn`, and 5G cell via `nr_cells` (`prefix + PCI5G`). Congestion is looked up in `etat_c_band`.
+
+### 4.5 DB confirmation checklist (required in production for the current features)
+Confirm the following before/after importing the dump — these guarantee the Product class, RSRP/SINR, cell-name, and closest-timestamp features work:
+
+```sql
+-- 1) Columns used by the incident enrichment exist and are populated:
+SELECT column_name FROM information_schema.columns
+WHERE table_schema='orange_db' AND table_name='acsmaxbox_5g'
+  AND column_name IN ('productclass','rsrp4g','sinr4g','rsrp5g','sinr5g','cellid','pci5g','timestamp','date','hour');
+
+-- Product class must contain non-empty values; sample check:
+SELECT DISTINCT productclass FROM acsmaxbox_5g WHERE productclass IS NOT NULL AND productclass <> '';
+
+-- 2) timestamp format is 'yyyy-MM-dd HH:mm:ss' (used for closest-date matching):
+SELECT COUNT(*) FROM acsmaxbox_5g
+WHERE timestamp IS NOT NULL AND timestamp NOT REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$';
+
+-- 3) Index on IMSI (essential for the batch lookup findAllByImsiIn used by /devices, /top-zones,
+--    /stats/by-product-class and /hz/msisdn/*). Create if missing:
+ALTER TABLE acsmaxbox_5g ADD INDEX idx_imsi (`IMSI`(20));
+
+-- 4) re_u_n2_29_06.Créé_le is a datetime — used as the comparison target:
+SELECT column_type FROM information_schema.columns
+WHERE table_schema='orange_db' AND table_name='re_u_n2_29_06' AND column_name='Créé_le';
+
+-- 5) Reference tables (cell names, sites, congestion) are populated and are NOT refreshed automatically:
+--    restart the backend after importing/updating lte_cell_info_..., nr_cells, site_otn, etat_c_band.
+SELECT COUNT(*) FROM lte_cell_info_lm_2026_06_30_11_32_27_244 WHERE Cell_Name IS NOT NULL;
+SELECT COUNT(*) FROM nr_cells WHERE Cell_Name IS NOT NULL;
+SELECT COUNT(*) FROM site_otn WHERE site IS NOT NULL;
+SELECT COUNT(*) FROM etat_c_band WHERE `Étiquettes_de_lignes` IS NOT NULL;
+```
 
 ---
 
@@ -238,6 +275,7 @@ java -jar target/device-monitoring-backend-1.0.0.jar
 | GET | `/api/incidents/stats/overview` | `{ totalIncidents, lastDay, last7Days }` | — |
 | GET | `/api/incidents/stats/by-type` | Count by `Sujet` | — |
 | GET | `/api/incidents/stats/by-offre` | Count by `Offre__Contrat` | — |
+| GET | `/api/incidents/stats/by-product-class` | Count by ACS `productclass` (uses closest-to-reclamation-date ACS row per incident) | — |
 | GET | `/api/incidents/stats/by-date` | Count by date | — |
 | GET | `/api/incidents/stats/hzerror` | HZ error distribution per incident (within ±3 days) | — |
 | GET | `/api/incidents/hz/daily-evolution` | HZ error types count per day (last 5 days) | `apn` (optional filter) |
@@ -424,10 +462,10 @@ mysql -u orange_app -p orange_db < orange_db_dump.sql
 - Keep `.env`/credentials out of the repository.
 
 ### 8.4 Database operations notes for infra
-- `acsmaxbox_5g` has **no index on `timestamp`** — the default sort (`timestamp,desc`) may cause slow scans on larger datasets. Create indexes:
+- `acsmaxbox_5g` has **no index on `timestamp`** — the default sort (`timestamp,desc`) may cause slow scans on larger datasets. Create indexes. **The `idx_imsi` index is now REQUIRED** — the Product class / RSRP / SINR / closest-timestamp enrichment (`/with-device-info`, `/stats/by-product-class`, `/top-zones`, `/hz/msisdn/*`) batch-queries all rows for an IMSI via `findAllByImsiIn`; without it the feature degrades to a full table scan on ~1M rows:
   ```sql
   ALTER TABLE acsmaxbox_5g ADD INDEX idx_timestamp (`timestamp`);
-  ALTER TABLE acsmaxbox_5g ADD INDEX idx_imsi (`IMSI`(20));
+  ALTER TABLE acsmaxbox_5g ADD INDEX idx_imsi (`IMSI`(20));   -- REQUIRED for new features
   ALTER TABLE acsmaxbox_5g ADD INDEX idx_cellid (`cellid`(20));
   ```
 - `fixbox_combined_table.MSISDN` is already indexed (`MUL`) — the hot IMSI lookup relies on it. Keep that index and consider one on `IMSI`.

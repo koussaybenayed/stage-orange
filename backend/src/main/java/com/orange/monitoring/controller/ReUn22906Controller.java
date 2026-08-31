@@ -54,6 +54,11 @@ public class ReUn22906Controller {
         return ResponseEntity.ok(service.getOffreDistribution());
     }
 
+    @GetMapping("/stats/by-product-class")
+    public ResponseEntity<List<NameCount>> getStatsByProductClass() {
+        return ResponseEntity.ok(service.getProductClassDistribution());
+    }
+
     @GetMapping("/stats/by-date")
     public ResponseEntity<List<NameCount>> getStatsByDate() {
         return ResponseEntity.ok(service.getDateDistribution());
